@@ -47,8 +47,15 @@ export default function BottomNav() {
           <span className="text-[10px] mt-1 font-medium">Account</span>
         </a>
 
-        {/* More */}
-        <a href="/more" className={`flex flex-col items-center py-1.5 px-4 min-w-0 ${isActive('/more') ? 'text-blue-600' : 'text-gray-500'}`}>
+        {/* More - WITH HIDDEN ADMIN ACCESS */}
+        <a 
+          href="/more" 
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            window.location.href = '/admin'
+          }}
+          className={`flex flex-col items-center py-1.5 px-4 min-w-0 ${isActive('/more') ? 'text-blue-600' : 'text-gray-500'}`}
+        >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
