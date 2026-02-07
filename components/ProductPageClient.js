@@ -1,15 +1,45 @@
 'use client'
 
 import { useCart } from '@/context/CartContext'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import RelatedProducts from './RelatedProducts'
 
 export default function ProductPageClient({ product }) {
   const { addToCart } = useCart()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
 
   const handleAddToCart = () => {
     addToCart(product)
     alert('Added to cart!')
+  }
+
+  // Minimum swipe distance (in px)
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e) => {
+    setTouchEnd(0) // Reset
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && currentImageIndex < product.images.length - 1) {
+      setCurrentImageIndex(prev => prev + 1)
+    }
+    if (isRightSwipe && currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1)
+    }
   }
 
   const nextImage = () => {
@@ -19,6 +49,17 @@ export default function ProductPageClient({ product }) {
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length)
   }
+
+  // Format price
+  const formattedPrice = product.price >= 1000000 
+    ? `₦${(product.price / 1000000).toFixed(1)}M`
+    : `₦${product.price.toLocaleString()}`
+
+  const formattedOldPrice = product.oldPrice 
+    ? (product.oldPrice >= 1000000 
+        ? `₦${(product.oldPrice / 1000000).toFixed(1)}M`
+        : `₦${product.oldPrice.toLocaleString()}`)
+    : null
 
   return (
     <div className="bg-gray-50 min-h-screen pb-28">
@@ -49,26 +90,35 @@ export default function ProductPageClient({ product }) {
           </div>
         </div>
 
-        {/* Product Images Carousel */}
-        <div className="bg-gray-50 p-6 relative">
+        {/* Product Images - SWIPEABLE */}
+        <div 
+          className="bg-gray-50 p-6 relative select-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="relative">
             <img 
               src={product.images[currentImageIndex]} 
               alt={product.name}
-              className="w-full h-80 object-contain"
+              className="w-full h-96 object-contain"
+              draggable="false"
             />
             {product.oldPrice && (
-              <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-3 py-1.5 rounded-full font-semibold shadow-md">
-                Save ₦{(product.oldPrice - product.price).toLocaleString()}
+              <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-md">
+                Save {((product.oldPrice - product.price) >= 1000000) 
+                  ? `₦${((product.oldPrice - product.price) / 1000000).toFixed(1)}M`
+                  : `₦${((product.oldPrice - product.price) / 1000).toFixed(0)}k`
+                }
               </span>
             )}
 
-            {/* Navigation Arrows */}
+            {/* Navigation Arrows - Desktop */}
             {product.images.length > 1 && (
               <>
                 <button 
                   onClick={prevImage}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 rounded-full p-2 shadow-md hover:bg-opacity-100 transition"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 rounded-full p-2 shadow-md hover:bg-opacity-100 transition hidden md:block"
                 >
                   <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -76,7 +126,7 @@ export default function ProductPageClient({ product }) {
                 </button>
                 <button 
                   onClick={nextImage}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 rounded-full p-2 shadow-md hover:bg-opacity-100 transition"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 rounded-full p-2 shadow-md hover:bg-opacity-100 transition hidden md:block"
                 >
                   <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -87,15 +137,26 @@ export default function ProductPageClient({ product }) {
           </div>
           
           {/* Image indicators */}
-          <div className="flex justify-center mt-4 space-x-2">
-            {product.images.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentImageIndex(index)}
-                className={`w-2 h-2 rounded-full transition ${index === currentImageIndex ? 'bg-blue-600 w-6' : 'bg-gray-300'}`}
-              />
-            ))}
-          </div>
+          {product.images.length > 1 && (
+            <div className="flex justify-center mt-4 space-x-2">
+              {product.images.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`transition-all ${
+                    index === currentImageIndex 
+                      ? 'bg-blue-600 w-8 h-2' 
+                      : 'bg-gray-300 w-2 h-2'
+                  } rounded-full`}
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Swipe hint */}
+          {product.images.length > 1 && (
+            <p className="text-center text-xs text-gray-500 mt-2">← Swipe to see more images →</p>
+          )}
         </div>
 
         {/* Product Info */}
@@ -108,11 +169,11 @@ export default function ProductPageClient({ product }) {
           {/* Price */}
           <div className="flex items-center space-x-3 mb-4">
             <span className="text-3xl font-bold text-gray-900">
-              ₦{product.price.toLocaleString()}
+              {formattedPrice}
             </span>
-            {product.oldPrice && (
+            {formattedOldPrice && (
               <span className="text-base text-gray-400 line-through">
-                ₦{product.oldPrice.toLocaleString()}
+                {formattedOldPrice}
               </span>
             )}
           </div>
@@ -140,17 +201,19 @@ export default function ProductPageClient({ product }) {
           </div>
 
           {/* Specifications */}
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-gray-900 mb-3">Specifications</h2>
-            <div className="space-y-2">
-              {Object.entries(product.specs).map(([key, value]) => (
-                <div key={key} className="flex justify-between py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">{key}</span>
-                  <span className="text-sm font-medium text-gray-900">{value}</span>
-                </div>
-              ))}
+          {product.specs && Object.keys(product.specs).length > 0 && (
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-gray-900 mb-3">Specifications</h2>
+              <div className="space-y-2">
+                {Object.entries(product.specs).map(([key, value]) => (
+                  <div key={key} className="flex justify-between py-2.5 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">{key}</span>
+                    <span className="text-sm font-medium text-gray-900">{value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Delivery & Warranty */}
           <div className="bg-blue-50 rounded-xl p-4 mb-4">
@@ -177,6 +240,9 @@ export default function ProductPageClient({ product }) {
 
         </div>
 
+{/* Related Products Section - ADD BEFORE STICKY BUTTON */}
+<RelatedProducts currentProduct={product} />
+
         {/* Sticky Add to Cart Button */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ zIndex: 100 }}>
           <div className="max-w-[430px] mx-auto">
@@ -184,7 +250,7 @@ export default function ProductPageClient({ product }) {
               onClick={handleAddToCart}
               className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition text-base shadow-md"
             >
-              Add to Cart - ₦{product.price.toLocaleString()}
+              Add to Cart - {formattedPrice}
             </button>
           </div>
         </div>
