@@ -8,16 +8,15 @@ export default function FeaturedCarousel({ products }) {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % products.length)
-    }, 4000) // Change every 4 seconds
-
+    }, 4000)
     return () => clearInterval(interval)
   }, [products.length])
 
   return (
-    <div className="relative overflow-hidden rounded-2xl shadow-lg" style={{ height: '320px' }}>
+    <div className="relative overflow-hidden rounded-2xl shadow-lg" style={{ height: '250px' }}>
       {products.map((product, index) => (
         
-        <a
+        <a 
           key={product.id}
           href={`/product/${product.id}`}
           className={`absolute inset-0 transition-all duration-700 ${
@@ -27,44 +26,55 @@ export default function FeaturedCarousel({ products }) {
             background: `linear-gradient(135deg, ${product.bgColor || '#3B82F6'} 0%, ${product.bgColor2 || '#8B5CF6'} 100%)`
           }}
         >
-          <div className="p-6 h-full flex flex-col justify-between text-white relative overflow-hidden">
+          <div className="p-6 h-full flex items-center justify-between relative overflow-hidden">
             
-            {/* Content */}
-            <div className="relative z-10">
-              {product.badge && (
-                <span className="inline-block bg-white bg-opacity-25 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full mb-3 font-semibold shadow-sm">
-                  {product.badge}
-                </span>
-              )}
-              <h3 className="text-xl font-bold mb-2 drop-shadow-md">
+            {/* Left: Product Info */}
+            <div className="relative z-10 flex-1">
+              <h3 className="text-2xl font-bold mb-2 drop-shadow-md text-white">
                 {product.name}
               </h3>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold drop-shadow-md">₦{product.price.toLocaleString()}</p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-4xl font-bold drop-shadow-md text-white">
+                  ₦{product.price >= 1000000 
+                    ? `${(product.price / 1000000).toFixed(1)}M`
+                    : `${(product.price / 1000).toFixed(0)}k`
+                  }
+                </p>
                 {product.oldPrice && (
-                  <p className="text-sm opacity-75 line-through">₦{product.oldPrice.toLocaleString()}</p>
+                  <p className="text-sm opacity-75 line-through text-white">
+                    ₦{product.oldPrice >= 1000000 
+                      ? `${(product.oldPrice / 1000000).toFixed(1)}M`
+                      : `${(product.oldPrice / 1000).toFixed(0)}k`
+                    }
+                  </p>
                 )}
               </div>
               {product.oldPrice && (
-                <p className="text-sm mt-1 font-medium">
-                  Save ₦{(product.oldPrice - product.price).toLocaleString()}
+                <p className="text-sm font-medium text-white">
+                  Save ₦{((product.oldPrice - product.price) / 1000).toFixed(0)}k
                 </p>
               )}
             </div>
 
-            {/* Large Product Image */}
-            <div className="absolute bottom-0 right-0 w-56 h-56 flex items-center justify-center opacity-90">
+            {/* Right: Large Product Image */}
+            <div className="relative z-10 w-48 h-48 flex items-center justify-center">
               <img 
                 src={product.image} 
                 alt={product.name}
-                className="w-full h-full object-contain drop-shadow-2xl"
-                style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.3))' }}
+                className="w-full h-full object-contain drop-shadow-2xl transform hover:scale-110 transition-transform duration-300"
               />
+              
+              {/* Badge - Top Right Corner */}
+              {product.badge && (
+                <span className="absolute -top-2 -left-42 bg-white text-gray-900 text-[10px] px-2 py-1 rounded-full font-bold shadow-md">
+                  {product.badge}
+                </span>
+              )}
             </div>
 
-            {/* Decorative Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+            {/* Decorative circles */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-5 rounded-full -ml-16 -mb-16"></div>
           </div>
         </a>
       ))}
