@@ -1,8 +1,29 @@
-export default function CategoriesPage() {
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+
+async function getCategoryCounts() {
+  try {
+    const snapshot = await getDocs(collection(db, 'products'))
+    const products = snapshot.docs.map(doc => doc.data())
+    
+    return {
+      phones: products.filter(p => p.category === 'phones').length,
+      laptops: products.filter(p => p.category === 'laptops').length,
+      accessories: products.filter(p => p.category === 'accessories').length
+    }
+  } catch (error) {
+    console.error('Error getting counts:', error)
+    return { phones: 0, laptops: 0, accessories: 0 }
+  }
+}
+
+export default async function CategoriesPage() {
+  const counts = await getCategoryCounts()
+
   const categories = [
-    { name: 'Phones', slug: 'phones', icon: '📱', color: 'from-blue-500 to-blue-600', count: 45 },
-    { name: 'Laptops', slug: 'laptops', icon: '💻', color: 'from-purple-500 to-purple-600', count: 32 },
-    { name: 'Accessories', slug: 'accessories', icon: '🎧', color: 'from-pink-500 to-pink-600', count: 67 },
+    { name: 'Phones', slug: 'phones', icon: '📱', color: 'from-blue-500 to-blue-600', count: counts.phones },
+    { name: 'Laptops', slug: 'laptops', icon: '💻', color: 'from-purple-500 to-purple-600', count: counts.laptops },
+    { name: 'Accessories', slug: 'accessories', icon: '🎧', color: 'from-pink-500 to-pink-600', count: counts.accessories },
   ]
 
   return (
