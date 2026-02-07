@@ -79,3 +79,17 @@ textarea::placeholder {
 a, button {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 20s linear infinite;
+}
