@@ -100,6 +100,31 @@ return (
     <div className="min-h-screen bg-gray-50"> 
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+
+      <div className="flex justify-between items-center">
+  <div className="flex items-center">
+    <a href="/admin/dashboard" className="mr-4">
+      <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      </svg>
+    </a>
+    <h1 className="text-xl font-bold text-gray-900">Products Management</h1>
+  </div>
+  <div className="flex gap-2">
+    
+      <a href="/admin/products/upload"
+      className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition"
+    >
+      📤 Bulk Upload (CSV)
+    </a>
+    
+      <a href="/admin/products/add"
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+    >
+      + Add Product
+    </a>
+  </div>
+</div>
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -112,11 +137,6 @@ return (
               <h1 className="text-xl font-bold text-gray-900">Products Management</h1>
             </div>
             
-              <a href="/admin/products/add"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-            >
-              + Add Product
-            </a>
           </div>
         </div>
       </div>
