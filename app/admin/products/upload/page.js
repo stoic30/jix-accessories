@@ -47,25 +47,30 @@ export default function BulkUpload() {
           })
 
           // Convert to proper format
-          const product = {
-            name: productData.name,
-            price: parseInt(productData.price),
-            oldPrice: productData.oldPrice ? parseInt(productData.oldPrice) : null,
-            category: productData.category,
-            subcategory: productData.subcategory,
-            brand: productData.brand,
-            image: productData.image,
-            images: [productData.image],
-            description: productData.description || '',
-            specs: {},
-            stock: parseInt(productData.stock || 10),
-            featured: productData.featured === 'true' || productData.featured === '1',
-            sale: productData.sale === 'true' || productData.sale === '1',
-            inStock: true,
-            warranty: '1 Year Warranty',
-            delivery: 'Free delivery within UI',
-            createdAt: new Date()
-          }
+const product = {
+  name: productData.name,
+  price: parseInt(productData.price),
+  oldPrice: productData.oldPrice ? parseInt(productData.oldPrice) : null,
+  category: productData.category,
+  subcategory: productData.subcategory,
+  brand: productData.brand,
+  image: productData.image, // Main image
+  images: [ // ALL images for swipe
+    productData.image,
+    productData.image2,
+    productData.image3,
+    productData.image4
+  ].filter(Boolean), // Remove empty values
+  description: productData.description || '',
+  specs: {},
+  stock: parseInt(productData.stock || 10),
+  featured: productData.featured === 'true' || productData.featured === '1',
+  sale: productData.sale === 'true' || productData.sale === '1',
+  inStock: true,
+  warranty: '1 Year Warranty',
+  delivery: 'Free delivery within UI',
+  createdAt: new Date()
+}
 
           await addDoc(collection(db, 'products'), product)
           successCount++
@@ -121,15 +126,15 @@ export default function BulkUpload() {
           <div className="mt-4">
             <button
               onClick={() => {
-                const csv = 'name,price,oldPrice,category,subcategory,brand,image,description,stock,featured,sale\niPhone 15 Pro Max 256GB,1200000,1350000,phones,iphone,Apple,https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&q=80,Ultimate iPhone with titanium design,15,true,true\nSamsung Galaxy S24 Ultra,450000,520000,phones,samsung,Samsung,https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=500&q=80,Flagship Samsung phone,20,true,false'
-                
-                const blob = new Blob([csv], { type: 'text/csv' })
-                const url = window.URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = 'jix-products-template.csv'
-                a.click()
-              }}
+  const csv = 'name,price,oldPrice,category,subcategory,brand,image,image2,image3,image4,description,stock,featured,sale\niPhone 15 Pro Max 256GB,1200000,1350000,phones,iphone,Apple,https://i.imgur.com/abc123.jpg,https://i.imgur.com/def456.jpg,https://i.imgur.com/ghi789.jpg,https://i.imgur.com/jkl012.jpg,Ultimate iPhone with titanium design,15,true,true\nSamsung Galaxy S24 Ultra,450000,520000,phones,samsung,Samsung,https://i.imgur.com/xyz789.jpg,https://i.imgur.com/uvw456.jpg,https://i.imgur.com/rst123.jpg,,Flagship Samsung phone,20,true,false'
+  
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'jix-products-template.csv'
+  a.click()
+}}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
             >
               📥 Download Template CSV

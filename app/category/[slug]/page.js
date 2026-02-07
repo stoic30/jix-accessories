@@ -1,89 +1,103 @@
-import ProductCard from '@/components/ProductCard'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
-// Category data (later from Firebase)
-const categoryData = {
-  phones: {
-    name: 'Phones',
-    subcategories: [
-      { name: 'Samsung', slug: 'samsung', icon: '📱' },
-      { name: 'iPhone', slug: 'iphone', icon: '📱' },
-      { name: 'Tablets', slug: 'tablets', icon: '📱' }
-    ]
-  },
-  laptops: {
-    name: 'Laptops',
-    subcategories: [
-      { name: 'HP', slug: 'hp', icon: '💻' },
-      { name: 'Dell', slug: 'dell', icon: '💻' },
-      { name: 'Apple MacBook', slug: 'macbook', icon: '💻' }
-    ]
-  },
-  accessories: {
-    name: 'Accessories',
-    subcategories: [
-      { name: 'Power Bank', slug: 'powerbank', icon: '🔋' },
-      { name: 'Headset', slug: 'headset', icon: '🎧' },
-      { name: 'Chargers', slug: 'chargers', icon: '🔌' },
-      { name: 'EarPods', slug: 'earpods', icon: '🎧' },
-      { name: 'Speakers', slug: 'speakers', icon: '🔊' },
-      { name: 'Memory Card', slug: 'memorycard', icon: '💾' },
-      { name: 'Flash Drive', slug: 'flashdrive', icon: '💾' },
-      { name: 'Smart Watch', slug: 'smartwatch', icon: '⌚' },
-      { name: 'Socket', slug: 'socket', icon: '🔌' },
-      { name: 'Lamp', slug: 'lamp', icon: '💡' },
-      { name: 'Cords', slug: 'cords', icon: '🔌' }
-    ]
+const SUBCATEGORY_IMAGES = {
+  // Phones
+  samsung: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80',
+  iphone: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=80',
+  tablets: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&q=80',
+  
+  // Laptops
+  hp: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&q=80',
+  dell: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&q=80',
+  macbook: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
+  
+  // Accessories
+  powerbank: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80',
+  headset: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400&q=80',
+  earpods: 'https://images.unsplash.com/photo-1606841837239-c5a1a4a07af7?w=400&q=80',
+  chargers: 'https://images.unsplash.com/photo-1625948515291-69613efd103f?w=400&q=80',
+  speakers: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',
+  smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
+}
+
+async function getSubcategories(category) {
+  try {
+    const q = query(collection(db, 'products'), where('category', '==', category))
+    const snapshot = await getDocs(q)
+    const products = snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+      }
+    })
+    
+    // Get unique subcategories
+    const subcategoriesMap = {}
+    products.forEach(p => {
+      if (!subcategoriesMap[p.subcategory]) {
+        subcategoriesMap[p.subcategory] = {
+          slug: p.subcategory,
+          name: p.subcategory.charAt(0).toUpperCase() + p.subcategory.slice(1),
+          count: 0
+        }
+      }
+      subcategoriesMap[p.subcategory].count++
+    })
+    
+    return Object.values(subcategoriesMap)
+  } catch (error) {
+    console.error('Error:', error)
+    return []
   }
 }
 
 export default async function CategoryPage({ params }) {
   const resolvedParams = await params
   const { slug } = resolvedParams
-  const category = categoryData[slug]
-
-  // If category doesn't exist, show error
-  if (!category) {
-    return (
-      <div className="max-w-[430px] mx-auto px-4 py-8 text-center">
-        <h1 className="text-xl font-bold text-gray-900">Category not found</h1>
-        <p className="text-sm text-gray-500 mt-2">Looking for: {slug}</p>
-        <a href="/" className="text-blue-600 text-sm mt-4 inline-block">← Back to Home</a>
-      </div>
-    )
-  }
+  
+  const subcategories = await getSubcategories(slug)
+  const categoryName = slug.charAt(0).toUpperCase() + slug.slice(1)
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20">
-      <div className="max-w-[430px] mx-auto">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-[430px] mx-auto px-4 py-6">
         
         {/* Header */}
-        <div className="bg-white px-4 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <a href="/" className="mr-3">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+        <div className="flex items-center mb-6">
+          <a href="/categories" className="mr-3">
+            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <h1 className="text-2xl font-bold text-gray-900">{categoryName}</h1>
+        </div>
+        
+        {/* Subcategories */}
+        <div className="grid grid-cols-2 gap-3">
+          {subcategories.map(sub => (
+            <a 
+              key={sub.slug}
+              href={`/category/${slug}/${sub.slug}`}
+              className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
+            >
+              <div className="relative h-32 bg-gray-50">
+                <img 
+                  src={SUBCATEGORY_IMAGES[sub.slug] || 'https://via.placeholder.com/400'} 
+                  alt={sub.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                  <h3 className="font-bold text-sm">{sub.name}</h3>
+                  <p className="text-xs opacity-90">{sub.count} products</p>
+                </div>
+              </div>
             </a>
-            <h1 className="text-lg font-bold text-gray-900">{category.name}</h1>
-          </div>
+          ))}
         </div>
-
-        {/* Subcategories Grid */}
-        <div className="px-4 py-4">
-          <div className="grid grid-cols-3 gap-3">
-            {category.subcategories.map((sub) => (
-              <a 
-                key={sub.slug} 
-                href={`/category/${slug}/${sub.slug}`}
-                className="bg-white rounded-lg p-4 text-center border border-gray-100 hover:border-blue-300 transition"
-              >
-                <div className="text-3xl mb-2">{sub.icon}</div>
-                <p className="text-xs font-medium text-gray-800">{sub.name}</p>
-              </a>
-            ))}
-          </div>
-        </div>
-
       </div>
     </div>
   )

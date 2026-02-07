@@ -7,10 +7,17 @@ async function getProducts() {
   try {
     const productsRef = collection(db, 'products')
     const snapshot = await getDocs(productsRef)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    
+    // CONVERT Firebase objects to plain JavaScript objects
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firebase Timestamp to ISO string
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+      }
+    })
   } catch (error) {
     console.error('Error fetching products:', error)
     return []
@@ -22,10 +29,17 @@ async function getFeaturedProducts() {
     const productsRef = collection(db, 'products')
     const q = query(productsRef, where('featured', '==', true), limit(4))
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    
+    // CONVERT Firebase objects to plain JavaScript objects
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firebase Timestamp to ISO string
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+      }
+    })
   } catch (error) {
     console.error('Error fetching featured products:', error)
     return []
@@ -198,18 +212,18 @@ export default async function Home() {
   </a>
 </div>
 
-        {/* All Products */}
-        <div className="px-4 py-5 mt-2 bg-white">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">All Products</h2>
-            <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {products.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </div>
+  {/* All Products */}
+<div className="px-4 py-5 mt-2 bg-white">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-lg font-semibold text-gray-900">All Products</h2>
+    <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
+  </div>
+  <div className="grid grid-cols-2 gap-3">
+    {products.map(product => (
+      <ProductCard key={product.id} product={product} />
+    ))}
+  </div>
+</div>
 
       </div>
     </div>

@@ -1,10 +1,17 @@
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 async function getCategoryCounts() {
   try {
     const snapshot = await getDocs(collection(db, 'products'))
-    const products = snapshot.docs.map(doc => doc.data())
+    const products = snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+      }
+    })
     
     return {
       phones: products.filter(p => p.category === 'phones').length,
@@ -21,9 +28,27 @@ export default async function CategoriesPage() {
   const counts = await getCategoryCounts()
 
   const categories = [
-    { name: 'Phones', slug: 'phones', icon: '📱', color: 'from-blue-500 to-blue-600', count: counts.phones },
-    { name: 'Laptops', slug: 'laptops', icon: '💻', color: 'from-purple-500 to-purple-600', count: counts.laptops },
-    { name: 'Accessories', slug: 'accessories', icon: '🎧', color: 'from-pink-500 to-pink-600', count: counts.accessories },
+    { 
+      name: 'Phones', 
+      slug: 'phones', 
+      image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80', // iPhone 15 Pro
+      color: 'from-blue-500 to-blue-600', 
+      count: counts.phones 
+    },
+    { 
+      name: 'Laptops', 
+      slug: 'laptops', 
+      image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=80', // MacBook Pro
+      color: 'from-purple-500 to-purple-600', 
+      count: counts.laptops 
+    },
+    { 
+      name: 'Accessories', 
+      slug: 'accessories', 
+      image: 'https://images.unsplash.com/photo-1606841837239-c5a1a4a07af7?w=600&q=80', // AirPods Pro
+      color: 'from-pink-500 to-pink-600', 
+      count: counts.accessories 
+    },
   ]
 
   return (
@@ -36,21 +61,24 @@ export default async function CategoriesPage() {
             <a 
               key={cat.slug}
               href={`/category/${cat.slug}`}
-              className="block bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+              className="block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className={`w-14 h-14 bg-gradient-to-br ${cat.color} rounded-xl flex items-center justify-center mr-4 shadow-sm`}>
-                    <span className="text-3xl">{cat.icon}</span>
-                  </div>
+              <div className="relative h-32">
+                <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-90`}></div>
+                <img 
+                  src={cat.image} 
+                  alt={cat.name}
+                  className="absolute inset-0 w-full h-full object-cover mix-blend-overlay"
+                />
+                <div className="absolute inset-0 flex items-center justify-between px-6">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">{cat.name}</h3>
-                    <p className="text-sm text-gray-500">{cat.count} products</p>
+                    <h3 className="text-xl font-bold text-white mb-1">{cat.name}</h3>
+                    <p className="text-sm text-white opacity-90">{cat.count} products</p>
                   </div>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
               </div>
             </a>
           ))}

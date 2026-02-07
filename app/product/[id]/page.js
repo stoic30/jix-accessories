@@ -8,9 +8,12 @@ async function getProduct(id) {
     const docSnap = await getDoc(docRef)
     
     if (docSnap.exists()) {
+      const data = docSnap.data()
       return {
         id: docSnap.id,
-        ...docSnap.data()
+        ...data,
+        // Convert Firebase Timestamp to ISO string
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
       }
     }
     return null

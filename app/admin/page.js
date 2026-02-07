@@ -34,7 +34,7 @@ export default function AdminLogin() {
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-2xl">J</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Jix Admin</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Stoic Admin</h1>
           <p className="text-sm text-gray-600 mt-1">Sign in to manage your store</p>
         </div>
 

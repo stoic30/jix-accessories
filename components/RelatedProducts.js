@@ -12,25 +12,32 @@ export default function RelatedProducts({ currentProduct }) {
   }, [currentProduct.id])
 
   const fetchRelatedProducts = async () => {
-    try {
-      // Get products from same subcategory, excluding current product
-      const q = query(
-        collection(db, 'products'),
-        where('subcategory', '==', currentProduct.subcategory),
-        limit(6)
-      )
-      
-      const snapshot = await getDocs(q)
-      const products = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(p => p.id !== currentProduct.id)
-        .slice(0, 4)
-      
-      setRelatedProducts(products)
-    } catch (error) {
-      console.error('Error fetching related products:', error)
-    }
+  try {
+    const q = query(
+      collection(db, 'products'),
+      where('subcategory', '==', currentProduct.subcategory),
+      limit(6)
+    )
+    
+    const snapshot = await getDocs(q)
+    const products = snapshot.docs
+      .map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          // Convert Firebase Timestamp to ISO string
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        }
+      })
+      .filter(p => p.id !== currentProduct.id)
+      .slice(0, 4)
+    
+    setRelatedProducts(products)
+  } catch (error) {
+    console.error('Error fetching related products:', error)
   }
+}
 
   if (relatedProducts.length === 0) return null
 

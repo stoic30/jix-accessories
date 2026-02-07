@@ -7,10 +7,17 @@ async function getProductsBySubcategory(subcategory) {
     const productsRef = collection(db, 'products')
     const q = query(productsRef, where('subcategory', '==', subcategory))
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    
+    // CONVERT Firebase objects to plain JavaScript objects
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firebase Timestamp to ISO string
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+      }
+    })
   } catch (error) {
     console.error('Error fetching products:', error)
     return []
