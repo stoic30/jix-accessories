@@ -2,6 +2,9 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import ProductCard from '@/components/ProductCard'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 async function getAllProducts() {
   try {
     const snapshot = await getDocs(collection(db, 'products'))
