@@ -2,7 +2,7 @@
 
 import { useCart } from '@/context/CartContext'
 import { useState } from 'react'
-import { collection, addDoc } from 'firebase/firestore'
+import { collection, addDoc, doc, runTransaction } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export default function CheckoutPage() {
@@ -44,6 +44,7 @@ export default function CheckoutPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
+    // Validate form
     if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
       alert('Please fill in all required fields')
       setIsSubmitting(false)
@@ -51,45 +52,86 @@ export default function CheckoutPage() {
     }
 
     try {
-      // Create order object
-      const order = {
-        orderId: `JIX-${Date.now()}`,
-        customer: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          hall: formData.hall,
-          notes: formData.notes
-        },
-        items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        totalAmount: getCartTotal(),
-        paymentMethod: formData.paymentMethod,
-        paymentStatus: formData.paymentMethod === 'delivery' ? 'Pending' : 'Paid',
-        orderStatus: 'Pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      // Use Firebase Transaction to check stock and create order atomically
+      await runTransaction(db, async (transaction) => {
+        
+        // STEP 1: Check stock for all items
+        for (const item of cart) {
+          const productRef = doc(db, 'products', item.id)
+          const productSnap = await transaction.get(productRef)
+          
+          if (!productSnap.exists()) {
+            throw new Error(`Product "${item.name}" not found`)
+          }
+          
+          const productData = productSnap.data()
+          const currentStock = productData.stock || 0
+          
+          // Check if enough stock
+          if (currentStock < item.quantity) {
+            throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. Please update your cart.`)
+          }
+        }
+        
+        // STEP 2: Reduce stock for all items
+        for (const item of cart) {
+          const productRef = doc(db, 'products', item.id)
+          const productSnap = await transaction.get(productRef)
+          const currentStock = productSnap.data().stock
+          const newStock = currentStock - item.quantity
+          
+          transaction.update(productRef, {
+            stock: newStock,
+            inStock: newStock > 0
+          })
+        }
+        
+        // STEP 3: Create order
+        const orderId = `JIX-${Date.now()}`
+        const order = {
+          orderId: orderId,
+          customer: {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            hall: formData.hall,
+            notes: formData.notes
+          },
+          items: cart.map(item => ({
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image
+          })),
+          totalAmount: getCartTotal(),
+          paymentMethod: formData.paymentMethod,
+          paymentStatus: 'Pending',
+          orderStatus: 'Pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
 
-      // Save to Firebase
-      const docRef = await addDoc(collection(db, 'orders'), order)
-      console.log('Order saved with ID:', docRef.id)
-
-      // Clear cart
+        // Add order to database
+        const orderRef = doc(collection(db, 'orders'))
+        transaction.set(orderRef, order)
+      })
+      
+      // SUCCESS - Clear cart and redirect
       clearCart()
-
-      // Redirect to success page
-      window.location.href = `/order-success?orderId=${order.orderId}`
+      window.location.href = `/order-success?orderId=JIX-${Date.now()}`
       
     } catch (error) {
-      console.error('Error saving order:', error)
-      alert('Error placing order. Please try again.')
+      console.error('Error placing order:', error)
+      
+      // Show specific error message
+      if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
+        alert(error.message)
+      } else {
+        alert('Error placing order. Please try again.')
+      }
+      
       setIsSubmitting(false)
     }
   }

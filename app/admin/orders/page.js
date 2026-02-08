@@ -71,6 +71,43 @@ export default function AdminOrders() {
     )
   }
 
+  const cancelOrder = async (orderId, orderItems) => {
+  if (!confirm('Cancel this order and restore stock?')) return
+  
+  try {
+    await runTransaction(db, async (transaction) => {
+      // Restore stock for all items
+      for (const item of orderItems) {
+        const productRef = doc(db, 'products', item.productId)
+        const productSnap = await transaction.get(productRef)
+        
+        if (productSnap.exists()) {
+          const currentStock = productSnap.data().stock || 0
+          const newStock = currentStock + item.quantity
+          
+          transaction.update(productRef, {
+            stock: newStock,
+            inStock: true
+          })
+        }
+      }
+      
+      // Update order status
+      const orderRef = doc(db, 'orders', orderId)
+      transaction.update(orderRef, {
+        orderStatus: 'Cancelled',
+        updatedAt: new Date()
+      })
+    })
+    
+    alert('Order cancelled and stock restored!')
+    fetchOrders()
+  } catch (error) {
+    console.error('Error cancelling order:', error)
+    alert('Error cancelling order')
+  }
+}
+
   return (
     <div className="min-h-screen bg-gray-50">
       
