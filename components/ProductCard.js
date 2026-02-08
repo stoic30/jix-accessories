@@ -27,33 +27,33 @@ export default function ProductCard({ product, compact = false }) {
     <a href={`/product/${product.id}`} className="bg-white rounded-xl overflow-hidden border border-gray-100 flex flex-col h-full block hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
       
       {/* Product Image */}
-      <div className="relative bg-gray-50 flex items-center justify-center" style={{ height: '200px', padding: '16px' }}>
-        
-        {/* BADGES */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {product.sale && (
-            <span className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
-              SALE
-            </span>
-          )}
-          {!product.inStock && (
-            <span className="bg-gray-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
-              OUT OF STOCK
-            </span>
-          )}
-          {product.inStock && product.stock < 5 && (
-            <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
-              LOW STOCK
-            </span>
-          )}
-        </div>
+<div className="relative bg-gray-50 flex items-center justify-center" style={{ height: '155px', padding: '16px' }}>
+  
+  {/* BADGES */}
+  <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+    {product.sale && product.oldPrice && (
+      <span className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
+        {Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}% OFF
+      </span>
+    )}
+    {!product.inStock && (
+      <span className="bg-gray-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
+        OUT OF STOCK
+      </span>
+    )}
+    {product.inStock && product.stock < 5 && (
+      <span className="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-sm">
+        LOW STOCK
+      </span>
+    )}
+  </div>
 
-        <img 
-          src={product.image} 
-          alt={product.name}
-          className="max-h-full max-w-full object-contain"
-        />
-      </div>
+  <img 
+    src={product.image} 
+    alt={product.name}
+    className="max-h-full max-w-full object-contain"
+  />
+</div>
 
       {/* Product Info */}
       <div className="p-3 flex flex-col flex-grow">
@@ -62,12 +62,20 @@ export default function ProductCard({ product, compact = false }) {
         </h3>
         
         <div className="mb-3">
-          <p className="text-lg font-bold text-gray-900">{formattedPrice}</p>
+          <p className="text-lg font-bold text-gray-900">{formattedPrice}</p>           
+             
           {formattedOldPrice && (
-            <p className="text-xs text-gray-400 line-through">
+            
+               <p className="text-xs text-gray-400 line-through">
               {formattedOldPrice}
-            </p>
+               <div className="inline-block bg-red-50 px-3 py-0 rounded-full mb-0">
+    <span className="text-red-600 text-xs font-semibold">
+      {Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}% off 
+    </span>
+  </div>   
+            </p> 
           )}
+       
         </div>
         
         <button 

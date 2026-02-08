@@ -1,5 +1,8 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import FeaturedCarousel from '@/components/FeaturedCarousel'
 
 const SUBCATEGORY_IMAGES = {
   // Phones
@@ -20,6 +23,7 @@ const SUBCATEGORY_IMAGES = {
   speakers: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',
   smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
 }
+
 
 async function getSubcategories(category) {
   try {

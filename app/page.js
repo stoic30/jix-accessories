@@ -1,20 +1,23 @@
 import ProductCard from '@/components/ProductCard'
 import FeaturedCarousel from '@/components/FeaturedCarousel'
-import { collection, getDocs, query, where, limit } from 'firebase/firestore'
+import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+
+// IMPORTANT: Make this page dynamic, not static
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 async function getProducts() {
   try {
     const productsRef = collection(db, 'products')
-    const snapshot = await getDocs(productsRef)
+    const q = query(productsRef, orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
     
-    // CONVERT Firebase objects to plain JavaScript objects
     return snapshot.docs.map(doc => {
       const data = doc.data()
       return {
         id: doc.id,
         ...data,
-        // Convert Firebase Timestamp to ISO string
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
       }
     })
@@ -27,16 +30,14 @@ async function getProducts() {
 async function getFeaturedProducts() {
   try {
     const productsRef = collection(db, 'products')
-    const q = query(productsRef, where('featured', '==', true), limit(4))
+    const q = query(productsRef, where('featured', '==', true))
     const snapshot = await getDocs(q)
     
-    // CONVERT Firebase objects to plain JavaScript objects
     return snapshot.docs.map(doc => {
       const data = doc.data()
       return {
         id: doc.id,
         ...data,
-        // Convert Firebase Timestamp to ISO string
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
       }
     })
@@ -46,12 +47,21 @@ async function getFeaturedProducts() {
   }
 }
 
+async function getCategoryCounts(products) {
+  return {
+    phones: products.filter(p => p.category === 'phones').length,
+    laptops: products.filter(p => p.category === 'laptops').length,
+    accessories: products.filter(p => p.category === 'accessories').length
+  }
+}
+
 export default async function Home() {
   const products = await getProducts()
   const featuredProducts = await getFeaturedProducts()
+  const counts = await getCategoryCounts(products)
 
   // Format featured products for carousel
-  const featuredForCarousel = featuredProducts.map((p, index) => {
+  const featuredForCarousel = featuredProducts.slice(0, 4).map((p, index) => {
     const colors = [
       { bg1: '#0071E3', bg2: '#5E5CE6', badge: '🔥 Hot Deal' },
       { bg1: '#1D1D1F', bg2: '#424245', badge: '✨ New Arrival' },
@@ -65,7 +75,7 @@ export default async function Home() {
       name: p.name,
       price: p.price,
       oldPrice: p.oldPrice,
-      image: p.image,
+      image: p.featuredImage || p.image,
       badge: colorSet.badge,
       bgColor: colorSet.bg1,
       bgColor2: colorSet.bg2
@@ -76,12 +86,12 @@ export default async function Home() {
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="max-w-[430px] mx-auto">
         
-        {/* Hot Deals Banner - ANIMATED MOVING TEXT */}
-<div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 overflow-hidden relative">
-  <div className="animate-marquee whitespace-nowrap">
-    <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
-  </div>
-</div>
+        {/* Hot Deals Banner - ANIMATED */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 overflow-hidden relative">
+          <div className="animate-marquee whitespace-nowrap">
+            <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
+          </div>
+        </div>
 
         {/* Trust Badges */}
         <div className="bg-white px-6 py-2 grid grid-cols-3 gap-3 text-center">
@@ -114,116 +124,141 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Categories */}
-       <div className="bg-white px-6 py-5 mt-2">
-  <div className="flex justify-center gap-4 max-w-xs mx-auto">
-    <a href="/category/phones" className="flex-shrink-0 text-center">
-      <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        {/* Categories with DYNAMIC COUNTS */}
+        <div className="bg-white px-6 py-6 mt-2">
+          <div className="flex justify-between max-w-xs mx-auto">
+            <a href="/category/phones" className="flex-shrink-0 text-center">
+              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
         <img 
           src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" 
           alt="Phones" 
           className="w-full h-full object-cover"
         />
-      </div>
-      <p className="text-xs font-semibold text-gray-800">Phones</p>
-    </a>
+              </div>
+              <p className="text-sm font-semibold text-gray-800">Phones</p>
+              <p className="text-xs text-gray-500">{counts.phones}</p>
+            </a>
 
-    <a href="/category/laptops" className="flex-shrink-0 text-center">
-      <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+            <a href="/category/laptops" className="flex-shrink-0 text-center">
+              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
         <img 
           src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" 
           alt="Laptops" 
           className="w-full h-full object-cover"
         />
-      </div>
-      <p className="text-xs font-semibold text-gray-800">Laptops</p>
-    </a>
+              </div>
+              <p className="text-sm font-semibold text-gray-800">Laptops</p>
+              <p className="text-xs text-gray-500">{counts.laptops}</p>
+            </a>
 
-    <a href="/category/accessories" className="flex-shrink-0 text-center">
-      <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img 
-          src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" 
-          alt="Accessories" 
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <p className="text-xs font-semibold text-gray-800">Accessories</p>
-    </a>
-  </div>
-</div>
+            <a href="/category/accessories" className="flex-shrink-0 text-center">
+              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+                <img 
+                  src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" 
+                  alt="Accessories" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <p className="text-sm font-semibold text-gray-800">Accessories</p>
+              <p className="text-xs text-gray-500">{counts.accessories}</p>
+            </a>
+          </div>
+        </div>
 
-   <div className="px-4 py-5 mt-2 bg-white">
+        {/* Popular Products */}
+        <div className="px-4 py-5 mt-2 bg-white">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Popular Products</h2>
-            <a href="/products/popular" className="text-blue-600 text-sm font-medium">View All →</a>
+            <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
           </div>
           
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
             {products.slice(0, 8).map(product => {
-              const formattedPrice = product.price >= 1000000
-        ? `₦${(product.price / 1000000).toFixed(1)}M`
-        : `₦${(product.price / 1000).toFixed(0)}k`
-      
-      return (        
-              <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
-                <div className="w-28 h-28 bg-gray-100 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-white">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                </div>
-                <p className="text-xs text-gray-700 font-medium w-28 line-clamp-2 leading-tight px-1">{product.name}</p>
-                <p className="text-sm font-bold text-gray-900 mt-1">{formattedPrice}</p>
-              </a>
-      )
+              const formattedPrice = product.price >= 1000000 
+                ? `₦${(product.price / 1000000).toFixed(1)}M`
+                : `₦${(product.price / 1000).toFixed(0)}k`
+              
+              return (
+                <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
+                  <div className="w-28 h-28 bg-gray-50 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-gray-100 p-2 relative">
+                    {product.sale && (
+                      <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">
+                        SALE
+                      </span>
+                    )}
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium w-28 line-clamp-2 leading-tight px-1">
+                    {product.name}
+                  </p>
+                  <p className="text-sm font-bold text-gray-900 mt-1">{formattedPrice}</p>
+                </a>
+              )
             })}
           </div>
         </div>
-
-
 
         {/* Featured Gadgets */}
         {featuredForCarousel.length > 0 && (
           <div className="px-4 py-5 mt-2 bg-white">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Featured Gadgets</h2>
-              <a href="/products/featured" className="text-blue-600 text-sm font-medium">View All →</a>
             </div>
             <FeaturedCarousel products={featuredForCarousel} />
           </div>
         )}
 
         {/* WhatsApp Expert */}
-<div className="mx-4 mt-2">
-  
-    <a href="https://wa.me/2348012345678?text=Hi, I need help choosing a phone"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
-  >
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-base font-bold mb-1">Need Help Repairing?</p>
-        <p className="text-sm opacity-90">Chat with our Phone Expert</p>
-      </div>
-      <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
-        <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-        </svg>
-      </div>
-    </div>
-  </a>
-</div>
+        <div className="mx-4 mt-2">
+          
+            <a href="https://wa.me/2349032535251?text=Hi, I need help choosing a phone"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-bold mb-1">Need Help Choosing?</p>
+                <p className="text-sm opacity-90">Chat with our Phone Expert</p>
+              </div>
+              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
+                <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+              </div>
+            </div>
+          </a>
+        </div>
 
-  {/* All Products */}
-<div className="px-4 py-5 mt-2 bg-white">
-  <div className="flex justify-between items-center mb-4">
-    <h2 className="text-lg font-semibold text-gray-900">All Products</h2>
-    <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
-  </div>
-  <div className="grid grid-cols-2 gap-3">
-    {products.map(product => (
-      <ProductCard key={product.id} product={product} />
-    ))}
-  </div>
-</div>
+        {/* All Products - SHOW ALL with NEW badge */}
+        <div className="px-4 py-5 mt-2 bg-white">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">All Products ({products.length})</h2>
+            <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {products.map(product => {
+              // Check if product is new (within last 7 days)
+              const isNew = product.createdAt && 
+                (new Date() - new Date(product.createdAt)) < 7 * 24 * 60 * 60 * 1000
+
+              return (
+                <div key={product.id} className="relative">
+                  {isNew && (
+                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-md z-10">
+                      NEW
+                    </span>
+                  )}
+                  <ProductCard product={product} />
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
       </div>
     </div>

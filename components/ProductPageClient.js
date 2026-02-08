@@ -51,15 +51,11 @@ export default function ProductPageClient({ product }) {
   }
 
   // Format price
-  const formattedPrice = product.price >= 1000000 
-    ? `₦${(product.price / 1000000).toFixed(1)}M`
-    : `₦${product.price.toLocaleString()}`
+  const formattedPrice = `₦${product.price.toLocaleString()}`
 
-  const formattedOldPrice = product.oldPrice 
-    ? (product.oldPrice >= 1000000 
-        ? `₦${(product.oldPrice / 1000000).toFixed(1)}M`
-        : `₦${product.oldPrice.toLocaleString()}`)
-    : null
+const formattedOldPrice = product.oldPrice 
+  ? `₦${product.oldPrice.toLocaleString()}`
+  : null
 
   return (
     <div className="bg-gray-50 min-h-screen pb-28">
@@ -177,6 +173,14 @@ export default function ProductPageClient({ product }) {
               </span>
             )}
           </div>
+
+          {product.oldPrice && (
+  <div className="inline-block bg-red-50 px-3 py-1 rounded-full mb-4">
+    <span className="text-red-600 text-sm font-bold">
+      {Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}% Discount 
+    </span>
+  </div>
+)}
 
           {/* Stock Status */}
           <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-gray-200">
