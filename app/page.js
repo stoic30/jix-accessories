@@ -136,7 +136,6 @@ export default async function Home() {
         />
               </div>
               <p className="text-sm font-semibold text-gray-800">Phones</p>
-              <p className="text-xs text-gray-500">{counts.phones}</p>
             </a>
 
             <a href="/category/laptops" className="flex-shrink-0 text-center">
@@ -148,7 +147,6 @@ export default async function Home() {
         />
               </div>
               <p className="text-sm font-semibold text-gray-800">Laptops</p>
-              <p className="text-xs text-gray-500">{counts.laptops}</p>
             </a>
 
             <a href="/category/accessories" className="flex-shrink-0 text-center">
@@ -160,7 +158,6 @@ export default async function Home() {
                 />
               </div>
               <p className="text-sm font-semibold text-gray-800">Accessories</p>
-              <p className="text-xs text-gray-500">{counts.accessories}</p>
             </a>
           </div>
         </div>
