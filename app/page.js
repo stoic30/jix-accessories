@@ -18,7 +18,9 @@ async function getProducts() {
       return {
         id: doc.id,
         ...data,
+        // Convert ALL Firebase Timestamps to ISO strings
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null, // ← ADD THIS LINE
       }
     })
   } catch (error) {
@@ -38,7 +40,9 @@ async function getFeaturedProducts() {
       return {
         id: doc.id,
         ...data,
+        // Convert ALL Firebase Timestamps to ISO strings
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null, // ← ADD THIS LINE
       }
     })
   } catch (error) {

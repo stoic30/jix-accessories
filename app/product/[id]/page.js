@@ -14,6 +14,8 @@ async function getProduct(id) {
         ...data,
         // Convert Firebase Timestamp to ISO string
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null, 
+
       }
     }
     return null

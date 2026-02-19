@@ -14,6 +14,8 @@ async function getAllProducts() {
         id: doc.id,
         ...data,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
+
       }
     })
   } catch (error) {
