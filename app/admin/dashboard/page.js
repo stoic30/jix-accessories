@@ -31,38 +31,46 @@ export default function AdminDashboard() {
     return () => unsubscribe()
   }, [])
 
-  const fetchStats = async () => {
-    try {
-      // Get products count
-      const productsSnap = await getDocs(collection(db, 'products'))
-      
-      // Get orders
-      const ordersSnap = await getDocs(collection(db, 'orders'))
-      const orders = ordersSnap.docs.map(doc => doc.data())
-      
-      const pendingCount = orders.filter(o => o.orderStatus === 'Pending').length
-      const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0)
-
-      setStats({
-        totalProducts: productsSnap.size,
-        totalOrders: ordersSnap.size,
-        pendingOrders: pendingCount,
-        revenue: totalRevenue
-      })
-    } catch (error) {
-      console.error('Error fetching stats:', error)
-    }
-
-    const lowStockProducts = products.filter(p => p.stock < 5 && p.stock > 0)
-
-setStats({
-  totalProducts: productsSnap.size,
-  totalOrders: ordersSnap.size,
-  pendingOrders: pendingCount,
-  revenue: totalRevenue,
-  lowStockCount: lowStockProducts.length // Add this
-})
+const fetchStats = async () => {
+  try {
+    const productsSnap = await getDocs(collection(db, 'products'))
+    const ordersSnap = await getDocs(collection(db, 'orders'))
+    
+    // GET PRODUCTS DATA
+    const productsData = productsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    
+    // GET ORDERS DATA
+    const ordersData = ordersSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    
+    // Count pending orders
+    const pendingCount = ordersData.filter(o => o.orderStatus === 'Pending').length
+    
+    // Calculate total revenue
+    const totalRevenue = ordersData.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
+    
+    // Count low stock products (NOW products exists!)
+    const lowStockProducts = productsData.filter(p => p.stock < 5 && p.stock > 0)
+    
+    setStats({
+      totalProducts: productsSnap.size,
+      totalOrders: ordersSnap.size,
+      pendingOrders: pendingCount,
+      revenue: totalRevenue,
+      lowStockCount: lowStockProducts.length
+    })
+    
+    setLoading(false)
+  } catch (error) {
+    console.error('Error fetching stats:', error)
+    setLoading(false)
   }
+}
 
   const fetchRecentOrders = async () => {
     try {

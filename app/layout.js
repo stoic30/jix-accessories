@@ -2,6 +2,11 @@ import './globals.css'
 import Navbar from '@/components/Navbar'
 import BottomNav from '@/components/BottomNav'
 import { CartProvider } from '@/context/CartContext'
+// In app/layout.js
+import ScrollToTop from '@/components/ScrollToTop'
+
+// Inside the body tag:
+<ScrollToTop />
 
 export const metadata = {
   title: 'Jix Accessories - Premium Tech for Students',

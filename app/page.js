@@ -59,6 +59,30 @@ async function getCategoryCounts(products) {
   }
 }
 
+async function getCategories() {
+  try {
+    const snapshot = await getDocs(collection(db, 'categories'))
+    if (snapshot.empty) {
+      // Return default categories if none exist
+      return [
+        { id: '1', name: 'Phones', slug: 'phones', icon: '📱' },
+        { id: '2', name: 'Laptops', slug: 'laptops', icon: '💻' },
+        { id: '3', name: 'Accessories', slug: 'accessories', icon: '🎧' }
+      ]
+    }
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    return [
+      { id: '1', name: 'Phones', slug: 'phones', icon: '📱' },
+      { id: '2', name: 'Laptops', slug: 'laptops', icon: '💻' },
+      { id: '3', name: 'Accessories', slug: 'accessories', icon: '🎧' }
+    ]
+  }
+}
 export default async function Home() {
   const products = await getProducts()
   const featuredProducts = await getFeaturedProducts()
@@ -182,11 +206,7 @@ export default async function Home() {
               return (
                 <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
                   <div className="w-28 h-28 bg-gray-50 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-gray-100 p-2 relative">
-                    {product.sale && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">
-                        SALE
-                      </span>
-                    )}
+                    
                     <img 
                       src={product.image} 
                       alt={product.name} 
