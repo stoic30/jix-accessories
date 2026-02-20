@@ -124,21 +124,26 @@ const product = {
           </div>
 
           <div className="mt-4">
-            <button
-              onClick={() => {
-  const csv = 'name,price,oldPrice,category,subcategory,brand,image,image2,image3,image4,description,stock,featured,sale\niPhone 15 Pro Max 256GB,1200000,1350000,phones,iphone,Apple,https://i.imgur.com/abc123.jpg,https://i.imgur.com/def456.jpg,https://i.imgur.com/ghi789.jpg,https://i.imgur.com/jkl012.jpg,Ultimate iPhone with titanium design,15,true,true\nSamsung Galaxy S24 Ultra,450000,520000,phones,samsung,Samsung,https://i.imgur.com/xyz789.jpg,https://i.imgur.com/uvw456.jpg,https://i.imgur.com/rst123.jpg,,Flagship Samsung phone,20,true,false'
-  
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'jix-products-template.csv'
-  a.click()
-}}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-            >
-              📥 Download Template CSV
-            </button>
+        <button
+  onClick={() => {
+    const csv = `name,price,oldPrice,category,subcategory,brand,image,image2,image3,image4,description,stock,featured,sale
+iPhone 15 Pro Max 256GB,1200000,1350000,phones,iphone,Apple,https://i.imgur.com/abc123.jpg,https://i.imgur.com/def456.jpg,https://i.imgur.com/ghi789.jpg,https://i.imgur.com/jkl012.jpg,Ultimate iPhone with titanium design and A17 Pro chip,15,true,true
+Samsung Galaxy S24 Ultra,950000,1050000,phones,samsung,Samsung,https://i.imgur.com/xyz789.jpg,https://i.imgur.com/uvw456.jpg,,,Flagship Samsung phone with S Pen and 200MP camera,20,true,false
+Dell XPS 15 i7,650000,750000,laptops,dell,Dell,https://i.imgur.com/laptop1.jpg,,,,Professional laptop with 15.6 inch 4K display,12,false,true
+MacBook Pro M3,1800000,,laptops,macbook,Apple,https://i.imgur.com/macbook.jpg,,,,Powerful MacBook with M3 chip and Liquid Retina XDR display,8,true,false
+Anker PowerCore 20000mAh,35000,45000,accessories,powerbank,Anker,https://i.imgur.com/powerbank.jpg,,,,High-capacity portable charger with fast charging,50,false,true`
+    
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'jix-products-template.csv'
+    a.click()
+  }}
+  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+>
+  📥 Download Template CSV
+</button>
           </div>
         </div>
 
