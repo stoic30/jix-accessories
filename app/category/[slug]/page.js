@@ -1,21 +1,17 @@
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import FeaturedCarousel from '@/components/FeaturedCarousel'
 
-const SUBCATEGORY_IMAGES = {
-  // Phones
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+// Default fallback images (if subcategory not in Firebase)
+const DEFAULT_SUBCATEGORY_IMAGES = {
   samsung: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80',
   iphone: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=80',
   tablets: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&q=80',
-  
-  // Laptops
   hp: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&q=80',
   dell: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&q=80',
   macbook: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
-  
-  // Accessories
   powerbank: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80',
   headset: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400&q=80',
   earpods: 'https://images.unsplash.com/photo-1606841837239-c5a1a4a07af7?w=400&q=80',
@@ -24,6 +20,23 @@ const SUBCATEGORY_IMAGES = {
   smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
 }
 
+async function getSubcategoryImages(category) {
+  try {
+    const q = query(collection(db, 'subcategories'), where('category', '==', category))
+    const snapshot = await getDocs(q)
+    
+    const images = {}
+    snapshot.docs.forEach(doc => {
+      const data = doc.data()
+      images[data.slug] = data.image
+    })
+    
+    return images
+  } catch (error) {
+    console.error('Error fetching subcategory images:', error)
+    return {}
+  }
+}
 
 async function getSubcategories(category) {
   try {
@@ -35,6 +48,7 @@ async function getSubcategories(category) {
         id: doc.id,
         ...data,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
       }
     })
     
@@ -63,6 +77,7 @@ export default async function CategoryPage({ params }) {
   const { slug } = resolvedParams
   
   const subcategories = await getSubcategories(slug)
+  const subcategoryImages = await getSubcategoryImages(slug)
   const categoryName = slug.charAt(0).toUpperCase() + slug.slice(1)
 
   return (
@@ -81,26 +96,33 @@ export default async function CategoryPage({ params }) {
         
         {/* Subcategories */}
         <div className="grid grid-cols-2 gap-3">
-          {subcategories.map(sub => (
-            <a 
-              key={sub.slug}
-              href={`/category/${slug}/${sub.slug}`}
-              className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
-            >
-              <div className="relative h-32 bg-gray-50">
-                <img 
-                  src={SUBCATEGORY_IMAGES[sub.slug] || 'https://via.placeholder.com/400'} 
-                  alt={sub.name}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                  <h3 className="font-bold text-sm">{sub.name}</h3>
-                  <p className="text-xs opacity-90">{sub.count} products</p>
+          {subcategories.map(sub => {
+            // Try to get image from Firebase, fallback to defaults, then placeholder
+            const imageUrl = subcategoryImages[sub.slug] || 
+                           DEFAULT_SUBCATEGORY_IMAGES[sub.slug] || 
+                           'https://via.placeholder.com/400x300?text=' + sub.name
+            
+            return (
+              <a 
+                key={sub.slug}
+                href={`/category/${slug}/${sub.slug}`}
+                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
+              >
+                <div className="relative h-32 bg-gray-50">
+                  <img 
+                    src={imageUrl}
+                    alt={sub.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                    <h3 className="font-bold text-sm">{sub.name}</h3>
+                    <p className="text-xs opacity-90">{sub.count} products</p>
+                  </div>
                 </div>
-              </div>
-            </a>
-          ))}
+              </a>
+            )
+          })}
         </div>
       </div>
     </div>
