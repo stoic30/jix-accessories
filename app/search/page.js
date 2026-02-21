@@ -75,13 +75,18 @@ function SearchResults() {
     }
 
     // Sort
-    if (filters.sortBy === 'price-low') {
-      filtered.sort((a, b) => a.price - b.price)
-    } else if (filters.sortBy === 'price-high') {
-      filtered.sort((a, b) => b.price - a.price)
-    } else if (filters.sortBy === 'name') {
-      filtered.sort((a, b) => a.name.localeCompare(b.name))
-    }
+  // Sort
+if (filters.sortBy === 'price-low') {
+  filtered.sort((a, b) => a.price - b.price)
+} else if (filters.sortBy === 'price-high') {
+  filtered.sort((a, b) => b.price - a.price)
+} else if (filters.sortBy === 'name') {
+  filtered.sort((a, b) => a.name.localeCompare(b.name))
+} else if (filters.sortBy === 'newest') {
+  filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+} else if (filters.sortBy === 'oldest') {
+  filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+}
 
     return filtered
   }
@@ -153,6 +158,8 @@ function SearchResults() {
                 <option value="accessories">Accessories</option>
               </select>
 
+              
+
               {/* Brand */}
               <select
                 value={filters.brand}
@@ -175,7 +182,11 @@ function SearchResults() {
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
                 <option value="name">Name: A to Z</option>
+                <option value="newest">Newest First</option>  {/* ← ADD THIS */}
+                <option value="oldest">Oldest First</option>   {/* ← ADD THIS */}
               </select>
+
+              
             </div>
           </details>
         </div>
@@ -215,3 +226,5 @@ export default function SearchPage() {
     </Suspense>
   )
 }
+
+

@@ -1,11 +1,34 @@
 import ProductCard from '@/components/ProductCard'
+import ProductsGrid from '@/components/ProductsGrid'
 import FeaturedCarousel from '@/components/FeaturedCarousel'
-import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
-// IMPORTANT: Make this page dynamic, not static
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// Deterministic shuffle - same order all day (no hydration error)
+function shuffleArray(array) {
+  const shuffled = [...array]
+  
+  // Seed based on current date (changes daily, consistent for the day)
+  const today = new Date()
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()
+  
+  // Seeded random function
+  function seededRandom(s) {
+    const x = Math.sin(s++) * 10000
+    return x - Math.floor(x)
+  }
+  
+  // Fisher-Yates shuffle with seed
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(seededRandom(seed + i) * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  
+  return shuffled
+}
 
 async function getProducts() {
   try {
@@ -18,9 +41,8 @@ async function getProducts() {
       return {
         id: doc.id,
         ...data,
-        // Convert ALL Firebase Timestamps to ISO strings
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null, // ← ADD THIS LINE
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
       }
     })
   } catch (error) {
@@ -40,13 +62,87 @@ async function getFeaturedProducts() {
       return {
         id: doc.id,
         ...data,
-        // Convert ALL Firebase Timestamps to ISO strings
         createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null, // ← ADD THIS LINE
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
       }
     })
   } catch (error) {
     console.error('Error fetching featured products:', error)
+    return []
+  }
+}
+
+async function getPopularProducts() {
+  try {
+    console.log('🔍 Fetching popular products...')
+    
+    const ordersSnap = await getDocs(collection(db, 'orders'))
+    console.log('📊 Total orders in database:', ordersSnap.size)
+    
+    if (ordersSnap.empty) {
+      console.log('⚠️ No orders found')
+      return []
+    }
+    
+    const orders = ordersSnap.docs.map(doc => {
+      const data = doc.data()
+      console.log('📦 Order:', doc.id, '→ Items:', data.items?.length || 0)
+      return data
+    })
+    
+    const productOrderCount = {}
+    let totalItemsCounted = 0
+    
+    orders.forEach(order => {
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+          totalItemsCounted++
+          const prodId = item.productId
+          if (productOrderCount[prodId]) {
+            productOrderCount[prodId] += item.quantity
+          } else {
+            productOrderCount[prodId] = item.quantity
+          }
+        })
+      }
+    })
+    
+    console.log('📈 Total items counted:', totalItemsCounted)
+    console.log('🔢 Product order counts:', productOrderCount)
+    
+    if (Object.keys(productOrderCount).length === 0) {
+      console.log('⚠️ No product IDs found in orders')
+      return []
+    }
+    
+    const productsSnap = await getDocs(collection(db, 'products'))
+    const products = productsSnap.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        orderCount: productOrderCount[doc.id] || 0,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || null,
+      }
+    })
+    
+    const popular = products
+      .filter(p => p.orderCount > 0)
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, 10)
+    
+    console.log('🔥 Popular products found:', popular.length)
+    if (popular.length > 0) {
+      console.log('Top products:', popular.slice(0, 3).map(p => ({
+        name: p.name,
+        orderCount: p.orderCount
+      })))
+    }
+    
+    return popular
+  } catch (error) {
+    console.error('❌ Error fetching popular products:', error)
     return []
   }
 }
@@ -63,7 +159,6 @@ async function getCategories() {
   try {
     const snapshot = await getDocs(collection(db, 'categories'))
     if (snapshot.empty) {
-      // Return default categories if none exist
       return [
         { id: '1', name: 'Phones', slug: 'phones', icon: '📱' },
         { id: '2', name: 'Laptops', slug: 'laptops', icon: '💻' },
@@ -83,12 +178,15 @@ async function getCategories() {
     ]
   }
 }
-export default async function Home() {
-  const products = await getProducts()
-  const featuredProducts = await getFeaturedProducts()
-  const counts = await getCategoryCounts(products)
 
-  // Format featured products for carousel
+export default async function Home() {
+  const allProducts = await getProducts()
+  const shuffledProducts = shuffleArray(allProducts)
+  const featuredProducts = await getFeaturedProducts()
+  const popularProducts = await getPopularProducts()
+  const categories = await getCategories()
+  const counts = await getCategoryCounts(allProducts)
+
   const featuredForCarousel = featuredProducts.slice(0, 4).map((p, index) => {
     const colors = [
       { bg1: '#0071E3', bg2: '#5E5CE6', badge: '🔥 Hot Deal' },
@@ -114,7 +212,7 @@ export default async function Home() {
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="max-w-[430px] mx-auto">
         
-        {/* Hot Deals Banner - ANIMATED */}
+       {/* Hot Deals Banner - ANIMATED */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 overflow-hidden relative">
           <div className="animate-marquee whitespace-nowrap">
             <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
@@ -152,78 +250,64 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Categories with DYNAMIC COUNTS */}
         <div className="bg-white px-6 py-6 mt-2">
           <div className="flex justify-between max-w-xs mx-auto">
             <a href="/category/phones" className="flex-shrink-0 text-center">
               <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img 
-          src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" 
-          alt="Phones" 
-          className="w-full h-full object-cover"
-        />
+                <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-full object-cover"/>
               </div>
               <p className="text-sm font-semibold text-gray-800">Phones</p>
             </a>
-
             <a href="/category/laptops" className="flex-shrink-0 text-center">
               <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img 
-          src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" 
-          alt="Laptops" 
-          className="w-full h-full object-cover"
-        />
+                <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" alt="Laptops" className="w-full h-full object-cover"/>
               </div>
               <p className="text-sm font-semibold text-gray-800">Laptops</p>
             </a>
-
             <a href="/category/accessories" className="flex-shrink-0 text-center">
               <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-                <img 
-                  src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" 
-                  alt="Accessories" 
-                  className="w-full h-full object-cover"
-                />
+                <img src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" alt="Accessories" className="w-full h-full object-cover"/>
               </div>
               <p className="text-sm font-semibold text-gray-800">Accessories</p>
             </a>
           </div>
         </div>
 
-        {/* Popular Products */}
         <div className="px-4 py-5 mt-2 bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Popular Products</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Popular Products 🔥</h2>
             <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
           </div>
           
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-            {products.slice(0, 8).map(product => {
-              const formattedPrice = product.price >= 1000000 
-                ? `₦${(product.price / 1000000).toFixed(1)}M`
-                : `₦${(product.price / 1000).toFixed(0)}k`
-              
-              return (
-                <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
-                  <div className="w-28 h-28 bg-gray-50 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-gray-100 p-2 relative">
-                    
-                    <img 
-                      src={product.image} 
-                      alt={product.name} 
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-700 font-medium w-28 line-clamp-2 leading-tight px-1">
-                    {product.name}
-                  </p>
-                  <p className="text-sm font-bold text-gray-900 mt-1">{formattedPrice}</p>
-                </a>
-              )
-            })}
-          </div>
+          {popularProducts.length > 0 ? (
+            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+              {popularProducts.map(product => {
+                const formattedPrice = product.price >= 1000000 
+                  ? `₦${(product.price / 1000000).toFixed(1)}M`
+                  : `₦${(product.price / 1000).toFixed(0)}k`
+                
+                return (
+                  <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
+                    <div className="w-28 h-28 bg-gray-50 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-gray-100 p-2 relative">
+                      <img src={product.image} alt={product.name} className="w-full h-full object-contain"/>
+                      <span className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">
+                        {product.orderCount} sold
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700 font-medium w-28 line-clamp-2 leading-tight px-1">{product.name}</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{formattedPrice}</p>
+                  </a>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-xl">
+              <p className="text-sm text-gray-500 mb-2">No orders yet</p>
+              <p className="text-xs text-gray-400">Popular products will appear once customers start buying!</p>
+            </div>
+          )}
         </div>
 
-        {/* Featured Gadgets */}
         {featuredForCarousel.length > 0 && (
           <div className="px-4 py-5 mt-2 bg-white">
             <div className="flex justify-between items-center mb-4">
@@ -233,14 +317,8 @@ export default async function Home() {
           </div>
         )}
 
-        {/* WhatsApp Expert */}
         <div className="mx-4 mt-2">
-          
-            <a href="https://wa.me/2349032535251?text=Hi, I need help choosing a phone"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
-          >
+          <a href="https://wa.me/2349032535251?text=Hi, I need help choosing a phone" target="_blank" rel="noopener noreferrer" className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-bold mb-1">Need Help Choosing?</p>
@@ -255,30 +333,12 @@ export default async function Home() {
           </a>
         </div>
 
-        {/* All Products - SHOW ALL with NEW badge */}
         <div className="px-4 py-5 mt-2 bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">All Products ({products.length})</h2>
+            <h2 className="text-lg font-semibold text-gray-900">All Products ({shuffledProducts.length})</h2>
             <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {products.map(product => {
-              // Check if product is new (within last 7 days)
-              const isNew = product.createdAt && 
-                (new Date() - new Date(product.createdAt)) < 7 * 24 * 60 * 60 * 1000
-
-              return (
-                <div key={product.id} className="relative">
-                  {isNew && (
-                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow-md z-10">
-                      NEW
-                    </span>
-                  )}
-                  <ProductCard product={product} />
-                </div>
-              )
-            })}
-          </div>
+          <ProductsGrid products={shuffledProducts} />
         </div>
 
       </div>

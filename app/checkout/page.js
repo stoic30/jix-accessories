@@ -40,101 +40,132 @@ export default function CheckoutPage() {
     }))
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  const handleSubmit = async (e, isPaid = false, paymentRef = null) => {
+  e.preventDefault()
+  setIsSubmitting(true)
 
-    // Validate form
-    if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
-      alert('Please fill in all required fields')
+  // Validate form
+  if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
+    alert('Please fill in all required fields')
+    setIsSubmitting(false)
+    return
+  }
+
+  // If Paystack payment selected and not already paid
+  if (formData.paymentMethod === 'paystack' && !isPaid) {
+    if (!formData.email) {
+      alert('Email is required for online payment')
       setIsSubmitting(false)
       return
     }
+    
+    // Initialize Paystack payment (if you have it set up)
+    // initializePayment(onPaystackSuccess, onPaystackClose)
+    // For now, just process as pending
+  }
 
-    try {
-      // Use Firebase Transaction to check stock and create order atomically
-      await runTransaction(db, async (transaction) => {
-        
-        // STEP 1: Check stock for all items
-        for (const item of cart) {
-          const productRef = doc(db, 'products', item.id)
-          const productSnap = await transaction.get(productRef)
-          
-          if (!productSnap.exists()) {
-            throw new Error(`Product "${item.name}" not found`)
-          }
-          
-          const productData = productSnap.data()
-          const currentStock = productData.stock || 0
-          
-          // Check if enough stock
-          if (currentStock < item.quantity) {
-            throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. Please update your cart.`)
-          }
-        }
-        
-        // STEP 2: Reduce stock for all items
-        for (const item of cart) {
-          const productRef = doc(db, 'products', item.id)
-          const productSnap = await transaction.get(productRef)
-          const currentStock = productSnap.data().stock
-          const newStock = currentStock - item.quantity
-          
-          transaction.update(productRef, {
-            stock: newStock,
-            inStock: newStock > 0
-          })
-        }
-        
-        // STEP 3: Create order
-        const orderId = `JIX-${Date.now()}`
-        const order = {
-          orderId: orderId,
-          customer: {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            hall: formData.hall,
-            notes: formData.notes
-          },
-          items: cart.map(item => ({
-            productId: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image
-          })),
-          totalAmount: getCartTotal(),
-          paymentMethod: formData.paymentMethod,
-          paymentStatus: 'Pending',
-          orderStatus: 'Pending',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-
-        // Add order to database
-        const orderRef = doc(collection(db, 'orders'))
-        transaction.set(orderRef, order)
-      })
+  try {
+    // Use Firebase Transaction - CORRECT ORDER: ALL READS FIRST, THEN ALL WRITES
+    await runTransaction(db, async (transaction) => {
       
-      // SUCCESS - Clear cart and redirect
-      clearCart()
-      window.location.href = `/order-success?orderId=JIX-${Date.now()}`
+      // ========================================
+      // PHASE 1: READ ALL PRODUCTS FIRST
+      // ========================================
+      const productRefs = []
+      const productSnapshots = []
       
-    } catch (error) {
-      console.error('Error placing order:', error)
-      
-      // Show specific error message
-      if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
-        alert(error.message)
-      } else {
-        alert('Error placing order. Please try again.')
+      for (const item of cart) {
+        const productRef = doc(db, 'products', item.id)
+        productRefs.push(productRef)
+        const productSnap = await transaction.get(productRef)
+        productSnapshots.push({ ref: productRef, snap: productSnap, item })
       }
       
-      setIsSubmitting(false)
+      // ========================================
+      // PHASE 2: VALIDATE ALL STOCK LEVELS
+      // ========================================
+      for (const { snap, item } of productSnapshots) {
+        if (!snap.exists()) {
+          throw new Error(`Product "${item.name}" not found`)
+        }
+        
+        const productData = snap.data()
+        const currentStock = productData.stock || 0
+        
+        if (currentStock < item.quantity) {
+          throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. You have ${item.quantity} in cart. Please reduce quantity or remove from cart.`)
+        }
+      }
+      
+      // ========================================
+      // PHASE 3: NOW DO ALL WRITES
+      // ========================================
+      
+      // 3a. Update stock for all products
+      for (const { ref, snap, item } of productSnapshots) {
+        const currentStock = snap.data().stock
+        const newStock = currentStock - item.quantity
+        
+        transaction.update(ref, {
+          stock: newStock,
+          inStock: newStock > 0,
+          updatedAt: new Date()
+        })
+      }
+      
+      // 3b. Create order
+      const orderId = paymentRef || `JIX-${Date.now()}`
+      const order = {
+        orderId: orderId,
+        customer: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          hall: formData.hall,
+          notes: formData.notes
+        },
+        items: cart.map(item => ({
+          productId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        })),
+        totalAmount: getCartTotal(),
+        paymentMethod: formData.paymentMethod,
+        paymentStatus: isPaid ? 'Paid' : 'Pending',
+        paymentReference: paymentRef || null,
+        orderStatus: 'Pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      const orderRef = doc(collection(db, 'orders'))
+      transaction.set(orderRef, order)
+    })
+    
+    // ========================================
+    // SUCCESS - Clear cart and redirect
+    // ========================================
+    clearCart()
+    window.location.href = `/order-success?orderId=${paymentRef || `JIX-${Date.now()}`}`
+    
+  } catch (error) {
+    console.error('Error placing order:', error)
+    
+    // Show specific error message
+    if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
+      alert(error.message)
+    } else if (error.message.includes('reads')) {
+      alert('Transaction error. Please try again.')
+    } else {
+      alert('Error placing order. Please try again.')
     }
+    
+    setIsSubmitting(false)
   }
+}
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
