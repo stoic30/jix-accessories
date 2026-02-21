@@ -290,9 +290,7 @@ export default async function Home() {
                   <a key={product.id} href={`/product/${product.id}`} className="flex-shrink-0 text-center">
                     <div className="w-28 h-28 bg-gray-50 rounded-full mb-2 flex items-center justify-center overflow-hidden shadow-sm border-2 border-gray-100 p-2 relative">
                       <img src={product.image} alt={product.name} className="w-full h-full object-contain"/>
-                      <span className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">
-                        {product.orderCount} sold
-                      </span>
+                      
                     </div>
                     <p className="text-xs text-gray-700 font-medium w-28 line-clamp-2 leading-tight px-1">{product.name}</p>
                     <p className="text-sm font-bold text-gray-900 mt-1">{formattedPrice}</p>
