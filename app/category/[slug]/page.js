@@ -1,5 +1,6 @@
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import SubcategoryCard from '@/components/SubcategoryCard'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,18 +23,25 @@ const DEFAULT_SUBCATEGORY_IMAGES = {
 
 async function getSubcategoryImages(category) {
   try {
+    console.log('🔍 Fetching subcategory images for category:', category)
+    
     const q = query(collection(db, 'subcategories'), where('category', '==', category))
     const snapshot = await getDocs(q)
+    
+    console.log('📊 Found', snapshot.size, 'subcategory documents')
     
     const images = {}
     snapshot.docs.forEach(doc => {
       const data = doc.data()
+      console.log('📄 Document:', doc.id, '→', data)
       images[data.slug] = data.image
     })
     
+    console.log('🖼️ Final images object:', images)
+    
     return images
   } catch (error) {
-    console.error('Error fetching subcategory images:', error)
+    console.error('❌ Error fetching subcategory images:', error)
     return {}
   }
 }
@@ -97,30 +105,18 @@ export default async function CategoryPage({ params }) {
         {/* Subcategories */}
         <div className="grid grid-cols-2 gap-3">
           {subcategories.map(sub => {
-            // Try to get image from Firebase, fallback to defaults, then placeholder
+            // Priority: Firebase → Defaults → Placeholder
             const imageUrl = subcategoryImages[sub.slug] || 
                            DEFAULT_SUBCATEGORY_IMAGES[sub.slug] || 
-                           'https://via.placeholder.com/400x300?text=' + sub.name
+                           `https://via.placeholder.com/400x300/3B82F6/FFFFFF?text=${sub.name}`
             
             return (
-              <a 
+              <SubcategoryCard 
                 key={sub.slug}
-                href={`/category/${slug}/${sub.slug}`}
-                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition"
-              >
-                <div className="relative h-32 bg-gray-50">
-                  <img 
-                    src={imageUrl}
-                    alt={sub.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                    <h3 className="font-bold text-sm">{sub.name}</h3>
-                    <p className="text-xs opacity-90">{sub.count} products</p>
-                  </div>
-                </div>
-              </a>
+                sub={sub}
+                slug={slug}
+                imageUrl={imageUrl}
+              />
             )
           })}
         </div>

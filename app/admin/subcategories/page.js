@@ -44,12 +44,21 @@ export default function AdminSubcategories() {
   }
 
   const handleAddSubcategory = async (e) => {
-    e.preventDefault()
-    try {
-      await addDoc(collection(db, 'subcategories'), {
-        ...newSubcategory,
-        createdAt: new Date()
-      })
+  e.preventDefault()
+  
+  // Force lowercase for category and slug
+  const subcategoryData = {
+    name: newSubcategory.name,
+    slug: newSubcategory.slug.toLowerCase().trim(),
+    category: newSubcategory.category.toLowerCase().trim(),
+    image: newSubcategory.image.trim(),
+    createdAt: new Date()
+  }
+  
+  console.log('📝 Adding subcategory:', subcategoryData)
+  
+  try {
+    await addDoc(collection(db, 'subcategories'), subcategoryData)
       alert('Subcategory added!')
       setNewSubcategory({ name: '', slug: '', category: 'accessories', image: '' })
       fetchSubcategories()
