@@ -51,7 +51,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-bold text-gray-900 mb-2">8. Contact</h2>
-            <p>For any questions, contact us via WhatsApp at +234 801 234 5678</p>
+            <p>For any questions, contact us via WhatsApp at +2349153048279</p>
           </section>
         </div>
       </div>

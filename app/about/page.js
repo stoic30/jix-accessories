@@ -43,7 +43,7 @@ export default function AboutPage() {
             </div>
 
             <p>
-              Have questions? <a href="https://wa.me/2349032535251" className="text-blue-600 font-medium">Chat with us on WhatsApp</a>
+              Have questions? <a href="https://wa.me/2349153048279" className="text-blue-600 font-medium">Chat with us on WhatsApp</a>
             </p>
           </div>
         </div>

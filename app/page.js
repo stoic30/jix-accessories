@@ -212,7 +212,7 @@ export default async function Home() {
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="max-w-[430px] mx-auto">
         
-       {/* Hot Deals Banner - ANIMATED */}
+       {/* Hot Deals Bar - ANIMATED */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 overflow-hidden relative">
           <div className="animate-marquee whitespace-nowrap">
             <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
@@ -316,11 +316,11 @@ export default async function Home() {
         )}
 
         <div className="mx-4 mt-2">
-          <a href="https://wa.me/2349032535251?text=Hi, I need help choosing a phone" target="_blank" rel="noopener noreferrer" className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300">
+          <a href="https://wa.me/2349153048279?text=Hi, I need help repairing my phone" target="_blank" rel="noopener noreferrer" className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base font-bold mb-1">Need Help Choosing?</p>
-                <p className="text-sm opacity-90">Chat with our Phone Expert</p>
+                <p className="text-base font-bold mb-1">Need Help Repairing your Phone?</p>
+                <p className="text-sm opacity-90">Chat with our Engineer</p>
               </div>
               <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
                 <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 24 24">

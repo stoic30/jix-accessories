@@ -7,7 +7,7 @@ function OrderSuccessContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId') || 'N/A'
 
-  const whatsappNumber = '2349032535251' // Replace with actual number
+  const whatsappNumber = '2349153048279' // 
   const whatsappMessage = `Hi, I just placed order ${orderId}`
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`
 

@@ -166,7 +166,7 @@ export default function OrdersPage() {
                 {/* Contact Support */}
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <a 
-                    href={`https://wa.me/2348012345678?text=Hi, I want to check on my order ${order.orderId}`}
+                    href={`https://wa.me/2349153048279?text=Hi, I want to check on my order ${order.orderId}`}
                     target="_blank"
                     className="text-green-600 text-sm font-medium flex items-center justify-center"
                   >
