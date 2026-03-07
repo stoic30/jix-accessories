@@ -1,6 +1,9 @@
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 async function getCategoryCounts() {
   try {
     const snapshot = await getDocs(collection(db, 'products'))
