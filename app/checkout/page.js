@@ -1,10 +1,9 @@
 'use client'
 
 import { useCart } from '@/context/CartContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { collection, doc, runTransaction } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { usePaystackPayment } from 'react-paystack'
 
 export default function CheckoutPage() {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -18,35 +17,16 @@ export default function CheckoutPage() {
     paymentMethod: 'delivery'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [PaystackButton, setPaystackButton] = useState(null)
 
-
-  console.log('🔑 Public Key:', process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY)
-console.log('📧 Email:', formData.email)
-console.log('💰 Amount:', getCartTotal() * 100)
-
-  // Paystack configuration
-  const paystackConfig = {
-    reference: `JIX-${Date.now()}`,
-    email: formData.email || 'customer@jix.com',
-    amount: getCartTotal() * 100, // Paystack uses kobo (naira × 100)
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
-    metadata: {
-      custom_fields: [
-        {
-          display_name: "Customer Name",
-          variable_name: "customer_name",
-          value: formData.name
-        },
-        {
-          display_name: "Phone Number",
-          variable_name: "phone_number",
-          value: formData.phone
-        }
-      ]
+  // Load Paystack only in browser
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      import('react-paystack').then((module) => {
+        setPaystackButton(() => module.PaystackButton)
+      })
     }
-  }
-
-  const initializePayment = usePaystackPayment(paystackConfig)
+  }, [])
 
   if (cart.length === 0) {
     return (
@@ -72,45 +52,19 @@ console.log('💰 Amount:', getCartTotal() * 100)
 
   const onPaystackSuccess = async (reference) => {
     console.log('✅ Payment successful:', reference)
-    // Now create order with "Paid" status
-    await handleSubmit(new Event('submit'), true, reference.reference)
+    setIsSubmitting(true)
+    await createOrder(true, reference.reference)
   }
 
   const onPaystackClose = () => {
     console.log('❌ Payment window closed')
-    alert('Payment cancelled. Your cart is still saved.')
     setIsSubmitting(false)
   }
 
-  const handleSubmit = async (e, isPaid = false, paymentRef = null) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    // Validate form
-    if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
-      alert('Please fill in all required fields')
-      setIsSubmitting(false)
-      return
-    }
-
-    // If Paystack selected and not already paid
-    if (formData.paymentMethod === 'paystack' && !isPaid) {
-      if (!formData.email) {
-        alert('Email is required for card payment')
-        setIsSubmitting(false)
-        return
-      }
-      
-      // Initialize Paystack
-      initializePayment(onPaystackSuccess, onPaystackClose)
-      return
-    }
-
+  const createOrder = async (isPaid = false, paymentRef = null) => {
     try {
-      // Use Firebase Transaction
       await runTransaction(db, async (transaction) => {
         
-        // PHASE 1: READ ALL PRODUCTS
         const productRefs = []
         const productSnapshots = []
         
@@ -121,7 +75,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
           productSnapshots.push({ ref: productRef, snap: productSnap, item })
         }
         
-        // PHASE 2: VALIDATE STOCK
         for (const { snap, item } of productSnapshots) {
           if (!snap.exists()) {
             throw new Error(`Product "${item.name}" not found`)
@@ -135,7 +88,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
           }
         }
         
-        // PHASE 3: UPDATE STOCK + CREATE ORDER
         for (const { ref, snap, item } of productSnapshots) {
           const currentStock = snap.data().stock
           const newStock = currentStock - item.quantity
@@ -178,7 +130,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
         transaction.set(orderRef, order)
       })
       
-      // SUCCESS
       clearCart()
       window.location.href = `/order-success?orderId=${paymentRef || `JIX-${Date.now()}`}`
       
@@ -187,6 +138,8 @@ console.log('💰 Amount:', getCartTotal() * 100)
       
       if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
         alert(error.message)
+      } else if (error.message.includes('permission')) {
+        alert('Permission error. Please contact support.')
       } else {
         alert('Error placing order. Please try again.')
       }
@@ -195,11 +148,60 @@ console.log('💰 Amount:', getCartTotal() * 100)
     }
   }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
+      alert('Please fill in all required fields')
+      setIsSubmitting(false)
+      return
+    }
+
+    if (formData.paymentMethod === 'paystack') {
+      if (!formData.email) {
+        alert('Email is required for card payment')
+        setIsSubmitting(false)
+        return
+      }
+      
+      // Validation passed, Paystack button will handle payment
+      setIsSubmitting(false)
+      return
+    }
+
+    // Pay on delivery
+    await createOrder(false, null)
+  }
+
+  const paystackConfig = {
+    reference: `JIX-${Date.now()}`,
+    email: formData.email || 'customer@jix.com',
+    amount: getCartTotal() * 100,
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+    metadata: {
+      custom_fields: [
+        {
+          display_name: "Customer Name",
+          variable_name: "customer_name",
+          value: formData.name
+        },
+        {
+          display_name: "Phone Number",
+          variable_name: "phone_number",
+          value: formData.phone
+        }
+      ]
+    },
+    text: 'Continue to Payment',
+    onSuccess: onPaystackSuccess,
+    onClose: onPaystackClose
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="max-w-[430px] mx-auto">
         
-        {/* Header */}
         <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-10">
           <div className="flex items-center">
             <a href="/cart" className="mr-3">
@@ -213,7 +215,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
 
         <form onSubmit={handleSubmit}>
           
-          {/* Delivery Information */}
           <div className="bg-white mt-2 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-4">Delivery Information</h2>
             
@@ -321,7 +322,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
             </div>
           </div>
 
-          {/* Payment Method */}
           <div className="bg-white mt-2 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-4">Payment Method</h2>
             
@@ -366,7 +366,6 @@ console.log('💰 Amount:', getCartTotal() * 100)
             </div>
           </div>
 
-          {/* Order Summary */}
           <div className="bg-white mt-2 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-3">Order Summary</h2>
             
@@ -397,20 +396,39 @@ console.log('💰 Amount:', getCartTotal() * 100)
             </div>
           </div>
 
-          {/* Submit Button */}
           <div className="px-4 mt-4 mb-24">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full py-3 rounded-lg font-medium transition ${
-                isSubmitting 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } text-white`}
-            >
-              {isSubmitting ? 'Processing...' : 
-               formData.paymentMethod === 'paystack' ? 'Continue to Payment' : 'Place Order'}
-            </button>
+            {formData.paymentMethod === 'paystack' && PaystackButton ? (
+              <div>
+                {!formData.name || !formData.phone || !formData.address || !formData.hall || !formData.email ? (
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-lg font-medium transition bg-gray-400 cursor-not-allowed text-white"
+                    disabled
+                  >
+                    Please fill all fields
+                  </button>
+                ) : (
+                  <PaystackButton 
+                    {...paystackConfig} 
+                    className="w-full py-3 rounded-lg font-medium transition bg-blue-600 hover:bg-blue-700 text-white border-none cursor-pointer"
+                  />
+                )}
+              </div>
+            ) : formData.paymentMethod === 'paystack' ? (
+              <div className="text-center py-3 text-sm text-gray-500">Loading payment...</div>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full py-3 rounded-lg font-medium transition ${
+                  isSubmitting 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } text-white`}
+              >
+                {isSubmitting ? 'Processing...' : 'Place Order'}
+              </button>
+            )}
             <p className="text-xs text-gray-500 text-center mt-3">
               🔒 Secure checkout - Your payment information is encrypted
             </p>
@@ -422,4 +440,3 @@ console.log('💰 Amount:', getCartTotal() * 100)
     </div>
   )
 }
-``
