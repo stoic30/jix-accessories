@@ -7,8 +7,8 @@ export const revalidate = 0
 
 // Default fallback images (if subcategory not in Firebase)
 const DEFAULT_SUBCATEGORY_IMAGES = {
-  samsung: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80',
-  iphone: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=80',
+  samsung: 'https://images.unsplash.com/photo-1707438095940-1eee18e85400?w=400&q=80',
+  iphone: 'https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80',
   tablets: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&q=80',
   HP: 'https://images.unsplash.com/photo-1729370775808-aab21a6b7039?w=400&q=80',
   Microsoft: 'https://images.unsplash.com/photo-1727132527904-528bb0afb370?w=400&q=80',
@@ -17,10 +17,14 @@ const DEFAULT_SUBCATEGORY_IMAGES = {
   Lenovo: 'https://images.unsplash.com/photo-1684384891902-12fe45aa3596?w=400&q=80',
   asus: 'https://images.unsplash.com/photo-1636211991297-6071abc2cec1?w=400&q=80',
   macbook: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
-  Powerbank: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80',
+  Powerbank: 'https://i.imgur.com/BSEjvZ7.jpeg?w=400&q=80',
   Headsets: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400&q=80',
-  Earpods: 'https://i.imgur.com/u84TiOm.jpeg?w=400&q=80',
-  Chargers: 'https://images.unsplash.com/photo-1625948515291-69613efd103f?w=400&q=80',
+  Earpods: 'https://images.unsplash.com/photo-1614651462377-4f3fe3e2c262?w=400&q=80',
+  Storage: 'https://images.unsplash.com/photo-1632251350035-7f750a5973b6?w=400&q=80',
+  Chargers: 'https://i.imgur.com/Q7oYfOZ.jpeg?w=400&q=80',
+  Earphone: 'https://i.imgur.com/ZbUmC1H.jpeg?w=400&q=80',
+  Fan: 'https://i.imgur.com/4SfFARY.jpeg?w=400&q=80',
+  Socket: 'https://i.imgur.com/hwJAzXa.jpeg?w=400&q=80',
   Speakers: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',
   smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
 }
