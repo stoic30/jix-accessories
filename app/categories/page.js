@@ -34,7 +34,7 @@ export default async function CategoriesPage() {
     { 
       name: 'Phones', 
       slug: 'phones', 
-      image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80', // iPhone 15 Pro
+      image: 'https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80',
       color: 'from-blue-500 to-blue-600', 
       count: counts.phones 
     },
