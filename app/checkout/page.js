@@ -2,8 +2,9 @@
 
 import { useCart } from '@/context/CartContext'
 import { useState } from 'react'
-import { collection, addDoc, doc, runTransaction } from 'firebase/firestore'
+import { collection, doc, runTransaction } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { usePaystackPayment } from 'react-paystack'
 
 export default function CheckoutPage() {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -17,6 +18,35 @@ export default function CheckoutPage() {
     paymentMethod: 'delivery'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+
+  console.log('🔑 Public Key:', process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY)
+console.log('📧 Email:', formData.email)
+console.log('💰 Amount:', getCartTotal() * 100)
+
+  // Paystack configuration
+  const paystackConfig = {
+    reference: `JIX-${Date.now()}`,
+    email: formData.email || 'customer@jix.com',
+    amount: getCartTotal() * 100, // Paystack uses kobo (naira × 100)
+    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+    metadata: {
+      custom_fields: [
+        {
+          display_name: "Customer Name",
+          variable_name: "customer_name",
+          value: formData.name
+        },
+        {
+          display_name: "Phone Number",
+          variable_name: "phone_number",
+          value: formData.phone
+        }
+      ]
+    }
+  }
+
+  const initializePayment = usePaystackPayment(paystackConfig)
 
   if (cart.length === 0) {
     return (
@@ -40,132 +70,130 @@ export default function CheckoutPage() {
     }))
   }
 
-  const handleSubmit = async (e, isPaid = false, paymentRef = null) => {
-  e.preventDefault()
-  setIsSubmitting(true)
-
-  // Validate form
-  if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
-    alert('Please fill in all required fields')
-    setIsSubmitting(false)
-    return
+  const onPaystackSuccess = async (reference) => {
+    console.log('✅ Payment successful:', reference)
+    // Now create order with "Paid" status
+    await handleSubmit(new Event('submit'), true, reference.reference)
   }
 
-  // If Paystack payment selected and not already paid
-  if (formData.paymentMethod === 'paystack' && !isPaid) {
-    if (!formData.email) {
-      alert('Email is required for online payment')
+  const onPaystackClose = () => {
+    console.log('❌ Payment window closed')
+    alert('Payment cancelled. Your cart is still saved.')
+    setIsSubmitting(false)
+  }
+
+  const handleSubmit = async (e, isPaid = false, paymentRef = null) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    // Validate form
+    if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
+      alert('Please fill in all required fields')
       setIsSubmitting(false)
       return
     }
-    
-    // Initialize Paystack payment (if you have it set up)
-    // initializePayment(onPaystackSuccess, onPaystackClose)
-    // For now, just process as pending
-  }
 
-  try {
-    // Use Firebase Transaction - CORRECT ORDER: ALL READS FIRST, THEN ALL WRITES
-    await runTransaction(db, async (transaction) => {
-      
-      // ========================================
-      // PHASE 1: READ ALL PRODUCTS FIRST
-      // ========================================
-      const productRefs = []
-      const productSnapshots = []
-      
-      for (const item of cart) {
-        const productRef = doc(db, 'products', item.id)
-        productRefs.push(productRef)
-        const productSnap = await transaction.get(productRef)
-        productSnapshots.push({ ref: productRef, snap: productSnap, item })
+    // If Paystack selected and not already paid
+    if (formData.paymentMethod === 'paystack' && !isPaid) {
+      if (!formData.email) {
+        alert('Email is required for card payment')
+        setIsSubmitting(false)
+        return
       }
       
-      // ========================================
-      // PHASE 2: VALIDATE ALL STOCK LEVELS
-      // ========================================
-      for (const { snap, item } of productSnapshots) {
-        if (!snap.exists()) {
-          throw new Error(`Product "${item.name}" not found`)
-        }
-        
-        const productData = snap.data()
-        const currentStock = productData.stock || 0
-        
-        if (currentStock < item.quantity) {
-          throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. You have ${item.quantity} in cart. Please reduce quantity or remove from cart.`)
-        }
-      }
-      
-      // ========================================
-      // PHASE 3: NOW DO ALL WRITES
-      // ========================================
-      
-      // 3a. Update stock for all products
-      for (const { ref, snap, item } of productSnapshots) {
-        const currentStock = snap.data().stock
-        const newStock = currentStock - item.quantity
-        
-        transaction.update(ref, {
-          stock: newStock,
-          inStock: newStock > 0,
-          updatedAt: new Date()
-        })
-      }
-      
-      // 3b. Create order
-      const orderId = paymentRef || `JIX-${Date.now()}`
-      const order = {
-        orderId: orderId,
-        customer: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          hall: formData.hall,
-          notes: formData.notes
-        },
-        items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        totalAmount: getCartTotal(),
-        paymentMethod: formData.paymentMethod,
-        paymentStatus: isPaid ? 'Paid' : 'Pending',
-        paymentReference: paymentRef || null,
-        orderStatus: 'Pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      const orderRef = doc(collection(db, 'orders'))
-      transaction.set(orderRef, order)
-    })
-    
-    // ========================================
-    // SUCCESS - Clear cart and redirect
-    // ========================================
-    clearCart()
-    window.location.href = `/order-success?orderId=${paymentRef || `JIX-${Date.now()}`}`
-    
-  } catch (error) {
-    console.error('Error placing order:', error)
-    
-    // Show specific error message
-    if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
-      alert(error.message)
-    } else if (error.message.includes('reads')) {
-      alert('Transaction error. Please try again.')
-    } else {
-      alert('Error placing order. Please try again.')
+      // Initialize Paystack
+      initializePayment(onPaystackSuccess, onPaystackClose)
+      return
     }
-    
-    setIsSubmitting(false)
+
+    try {
+      // Use Firebase Transaction
+      await runTransaction(db, async (transaction) => {
+        
+        // PHASE 1: READ ALL PRODUCTS
+        const productRefs = []
+        const productSnapshots = []
+        
+        for (const item of cart) {
+          const productRef = doc(db, 'products', item.id)
+          productRefs.push(productRef)
+          const productSnap = await transaction.get(productRef)
+          productSnapshots.push({ ref: productRef, snap: productSnap, item })
+        }
+        
+        // PHASE 2: VALIDATE STOCK
+        for (const { snap, item } of productSnapshots) {
+          if (!snap.exists()) {
+            throw new Error(`Product "${item.name}" not found`)
+          }
+          
+          const productData = snap.data()
+          const currentStock = productData.stock || 0
+          
+          if (currentStock < item.quantity) {
+            throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. You have ${item.quantity} in cart. Please reduce quantity.`)
+          }
+        }
+        
+        // PHASE 3: UPDATE STOCK + CREATE ORDER
+        for (const { ref, snap, item } of productSnapshots) {
+          const currentStock = snap.data().stock
+          const newStock = currentStock - item.quantity
+          
+          transaction.update(ref, {
+            stock: newStock,
+            inStock: newStock > 0,
+            updatedAt: new Date()
+          })
+        }
+        
+        const orderId = paymentRef || `JIX-${Date.now()}`
+        const order = {
+          orderId: orderId,
+          customer: {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            hall: formData.hall,
+            notes: formData.notes
+          },
+          items: cart.map(item => ({
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image
+          })),
+          totalAmount: getCartTotal(),
+          paymentMethod: formData.paymentMethod,
+          paymentStatus: isPaid ? 'Paid' : 'Pending',
+          paymentReference: paymentRef || null,
+          orderStatus: 'Pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+
+        const orderRef = doc(collection(db, 'orders'))
+        transaction.set(orderRef, order)
+      })
+      
+      // SUCCESS
+      clearCart()
+      window.location.href = `/order-success?orderId=${paymentRef || `JIX-${Date.now()}`}`
+      
+    } catch (error) {
+      console.error('Error placing order:', error)
+      
+      if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
+        alert(error.message)
+      } else {
+        alert('Error placing order. Please try again.')
+      }
+      
+      setIsSubmitting(false)
+    }
   }
-}
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
@@ -190,7 +218,6 @@ export default function CheckoutPage() {
             <h2 className="text-sm font-bold text-gray-900 mb-4">Delivery Information</h2>
             
             <div className="space-y-3">
-              {/* Full Name */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Full Name <span className="text-red-500">*</span>
@@ -206,7 +233,6 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              {/* Phone Number */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Phone Number <span className="text-red-500">*</span>
@@ -222,10 +248,9 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              {/* Email (Optional) */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Email (Optional)
+                  Email {formData.paymentMethod === 'paystack' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="email"
@@ -233,11 +258,14 @@ export default function CheckoutPage() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="johndoe@example.com"
+                  required={formData.paymentMethod === 'paystack'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {formData.paymentMethod === 'paystack' && (
+                  <p className="text-xs text-gray-500 mt-1">Email required for card payment receipt</p>
+                )}
               </div>
 
-              {/* Hall/Location */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Hall/Location in UI <span className="text-red-500">*</span>
@@ -262,7 +290,6 @@ export default function CheckoutPage() {
                 </select>
               </div>
 
-              {/* Detailed Address */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Detailed Address <span className="text-red-500">*</span>
@@ -278,7 +305,6 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              {/* Additional Notes */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Additional Notes (Optional)
@@ -300,7 +326,6 @@ export default function CheckoutPage() {
             <h2 className="text-sm font-bold text-gray-900 mb-4">Payment Method</h2>
             
             <div className="space-y-3">
-              {/* Pay on Delivery */}
               <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
                 <input
                   type="radio"
@@ -319,7 +344,6 @@ export default function CheckoutPage() {
                 </div>
               </label>
 
-              {/* Paystack */}
               <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
                 <input
                   type="radio"
@@ -331,9 +355,12 @@ export default function CheckoutPage() {
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">Pay with Card/Bank Transfer</span>
+                    <span className="text-sm font-medium text-gray-900">Pay with Card/Bank</span>
+                    <svg className="w-16 h-6" viewBox="0 0 120 30" fill="none">
+                      <text x="0" y="20" fontSize="18" fontWeight="bold" fill="#00C3F7">Paystack</text>
+                    </svg>
                   </div>
-                  <p className="text-xs text-gray-600">Secure payment via Paystack</p>
+                  <p className="text-xs text-gray-600">Secure payment via Paystack - Visa, Mastercard, Verve</p>
                 </div>
               </label>
             </div>
@@ -343,7 +370,6 @@ export default function CheckoutPage() {
           <div className="bg-white mt-2 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-3">Order Summary</h2>
             
-            {/* Items */}
             <div className="space-y-2 mb-3 pb-3 border-b border-gray-200">
               {cart.map(item => (
                 <div key={item.id} className="flex justify-between text-xs">
@@ -353,7 +379,6 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            {/* Totals */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
@@ -383,10 +408,11 @@ export default function CheckoutPage() {
                   : 'bg-blue-600 hover:bg-blue-700'
               } text-white`}
             >
-              {isSubmitting ? 'Processing...' : 'Place Order'}
+              {isSubmitting ? 'Processing...' : 
+               formData.paymentMethod === 'paystack' ? 'Continue to Payment' : 'Place Order'}
             </button>
             <p className="text-xs text-gray-500 text-center mt-3">
-              By placing this order, you agree to our terms and conditions
+              🔒 Secure checkout - Your payment information is encrypted
             </p>
           </div>
 
@@ -396,3 +422,4 @@ export default function CheckoutPage() {
     </div>
   )
 }
+``
