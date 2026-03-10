@@ -213,7 +213,7 @@ export default async function Home() {
       <div className="max-w-[430px] mx-auto">
         
        {/* Hot Deals Bar - ANIMATED */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 overflow-hidden relative">
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 overflow-hidden relative">
           <div className="animate-marquee whitespace-nowrap">
             <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
           </div>
@@ -250,7 +250,7 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="bg-white px-6 py-6 mt-2">
+        <div className="bg-white px-6 py-5 mt-2">
           <div className="flex justify-between max-w-xs mx-auto">
             <a href="/category/phones" className="flex-shrink-0 text-center">
               <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
@@ -273,9 +273,9 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="px-4 py-5 mt-2 bg-white">
+        <div className="px-4 py-2 mt-2 bg-white">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Popular Products 🔥</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Popular Products </h2>
             <a href="/products" className="text-blue-600 text-sm font-medium">View All →</a>
           </div>
           
