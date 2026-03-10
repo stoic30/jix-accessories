@@ -27,6 +27,7 @@ const DEFAULT_SUBCATEGORY_IMAGES = {
   Socket: 'https://i.imgur.com/hwJAzXa.jpeg?w=400&q=80',
   Speakers: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',
   smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
+  lighting: 'https://images.unsplash.com/photo-1621177555630-b861919c864f?w=400&q=80',
 }
 
 async function getSubcategoryImages(category) {
