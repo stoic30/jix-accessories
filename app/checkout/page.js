@@ -14,7 +14,7 @@ export default function CheckoutPage() {
     address: '',
     hall: '',
     notes: '',
-    paymentMethod: 'delivery'
+    paymentMethod: 'paystack'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [PaystackButton, setPaystackButton] = useState(null)

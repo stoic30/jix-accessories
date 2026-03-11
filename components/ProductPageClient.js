@@ -233,7 +233,7 @@ const formattedOldPrice = product.oldPrice
               </svg>
               <div>
                 <p className="text-sm font-semibold text-gray-900">{product.delivery}</p>
-                <p className="text-xs text-gray-600 mt-0.5">Delivery within 2-3 business days</p>
+                <p className="text-xs text-gray-600 mt-0.5">Delivery within 1-2 business days</p>
               </div>
             </div>
             <div className="flex items-start">
