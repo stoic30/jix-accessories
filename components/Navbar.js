@@ -26,7 +26,7 @@ export default function Navbar() {
             <img 
               src="/logo.png" 
               alt="Jix Logo" 
-              className="h-9 w-auto"
+              className="h-10 w-0"
               style={{ minWidth: '45px' }}
               onError={(e) => {
                 // Fallback if logo doesn't exist
