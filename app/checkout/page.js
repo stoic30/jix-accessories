@@ -285,10 +285,11 @@ export default function CheckoutPage() {
                   <option value="Queen Elizabeth Hall">Queen Elizabeth Hall</option>
                   <option value="Mellanby Hall">Mellanby Hall</option>
                   <option value="Independence Hall">Independence Hall</option>
-                  <option value="Off Campus (Bodija)">Off Campus (Bodija)</option>
-                  <option value="Off Campus (Ajibode)">Off Campus (Ajibode)</option>
-                  <option value="Off Campus (Other)">Off Campus (Other)</option>
-                </select>
+                  <option value="Zik Hall">Zik Hall</option>
+                  <option value="Bello Hall">Bello Hall</option>
+                  <option value="Idia Hall">Idia Hall</option>
+                  <option value="Other">Other</option>
+                  </select>
               </div>
 
               <div>
@@ -299,7 +300,7 @@ export default function CheckoutPage() {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  placeholder="Room number, block, landmarks..."
+                  placeholder="Room number, block, other location..."
                   required
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -326,25 +327,8 @@ export default function CheckoutPage() {
             <h2 className="text-sm font-bold text-gray-900 mb-4">Payment Method</h2>
             
             <div className="space-y-3">
-              <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="delivery"
-                  checked={formData.paymentMethod === 'delivery'}
-                  onChange={handleChange}
-                  className="mt-0.5 mr-3"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">Pay on Delivery</span>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Recommended</span>
-                  </div>
-                  <p className="text-xs text-gray-600">Pay with cash when your order arrives</p>
-                </div>
-              </label>
-
-              <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+              
+               <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -363,6 +347,24 @@ export default function CheckoutPage() {
                   <p className="text-xs text-gray-600">Secure payment via Paystack - Visa, Mastercard, Verve</p>
                 </div>
               </label>
+
+              <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="delivery"
+                  checked={formData.paymentMethod === 'delivery'}
+                  onChange={handleChange}
+                  className="mt-0.5 mr-3"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-900">Pay on Delivery</span>
+                  </div>
+                  <p className="text-xs text-gray-600">Pay with cash when your order arrives</p>
+                </div>
+              </label>
+          
             </div>
           </div>
 
