@@ -258,7 +258,7 @@ export default function CheckoutPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="johndoe@example.com"
+                  placeholder="johnodey@example.com"
                   required={formData.paymentMethod === 'paystack'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -339,12 +339,12 @@ export default function CheckoutPage() {
                 />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">Pay with Card/Bank</span>
+                    <span className="text-sm font-medium text-gray-900">Pay with Transfer/Card</span>
                     <svg className="w-16 h-6" viewBox="0 0 120 30" fill="none">
                       <text x="0" y="20" fontSize="18" fontWeight="bold" fill="#00C3F7">Paystack</text>
                     </svg>
                   </div>
-                  <p className="text-xs text-gray-600">Secure payment via Paystack - Visa, Mastercard, Verve</p>
+                  <p className="text-xs text-gray-600">Secure payment via Paystack - Transfer, Visa, Mastercard, Verve</p>
                 </div>
               </label>
 
