@@ -1,355 +1,173 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
-export default function AdminOrders() {
-  const [user, setUser] = useState(null)
+export default function OrdersPage() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // all, pending, confirmed, delivered
+  const [searchPhone, setSearchPhone] = useState('')
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser)
-        fetchOrders()
-      } else {
-        window.location.href = '/admin'
-      }
-    })
-
-    return () => unsubscribe()
-  }, [])
-
-  const fetchOrders = async () => {
+  const fetchOrdersByPhone = async () => {
+    if (!searchPhone) {
+      alert('Please enter your phone number')
+      return
+    }
+    
+    setLoading(true)
     try {
       const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
       const snapshot = await getDocs(q)
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setOrders(ordersData)
+      
+      // CRITICAL: Filter by phone number (only show THIS customer's orders)
+      const customerOrders = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter(order => order.customer.phone === searchPhone)
+      
+      setOrders(customerOrders)
+      
+      if (customerOrders.length === 0) {
+        alert(`No orders found for phone number: ${searchPhone}`)
+      }
+      
       setLoading(false)
     } catch (error) {
       console.error('Error fetching orders:', error)
       setLoading(false)
+      alert('Error loading orders. Please try again.')
     }
   }
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
-    try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        orderStatus: newStatus,
-        updatedAt: new Date()
-      })
-      
-      setOrders(orders.map(o => 
-        o.id === orderId ? { ...o, orderStatus: newStatus } : o
-      ))
-      
-      alert(`Order status updated to ${newStatus}`)
-    } catch (error) {
-      console.error('Error updating order:', error)
-      alert('Error updating order status')
-    }
-  }
-
-  const filteredOrders = orders.filter(order => {
-    if (filter === 'all') return true
-    return order.orderStatus.toLowerCase() === filter
-  })
-
-  if (loading) {
+  if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">Loading orders...</div>
-      </div>
-    )
-  }
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-[430px] mx-auto px-4 py-6">
+          <div className="flex items-center mb-6">
+            <a href="/account" className="mr-3">
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </a>
+            <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+          </div>
 
-  const cancelOrder = async (orderId, orderItems) => {
-  if (!confirm('Cancel this order and restore stock?')) return
-  
-  try {
-    await runTransaction(db, async (transaction) => {
-      // Restore stock for all items
-      for (const item of orderItems) {
-        const productRef = doc(db, 'products', item.productId)
-        const productSnap = await transaction.get(productRef)
-        
-        if (productSnap.exists()) {
-          const currentStock = productSnap.data().stock || 0
-          const newStock = currentStock + item.quantity
-          
-          transaction.update(productRef, {
-            stock: newStock,
-            inStock: true
-          })
-        }
-      }
-      
-      // Update order status
-      const orderRef = doc(db, 'orders', orderId)
-      transaction.update(orderRef, {
-        orderStatus: 'Cancelled',
-        updatedAt: new Date()
-      })
-    })
-    
-    alert('Order cancelled and stock restored!')
-    fetchOrders()
-  } catch (error) {
-    console.error('Error cancelling order:', error)
-    alert('Error cancelling order')
-  }
-}
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <a href="/admin/dashboard" className="mr-4">
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </a>
-              <h1 className="text-xl font-bold text-gray-900">Orders Management</h1>
+          <div className="bg-blue-50 rounded-xl p-4 mb-4">
+            <p className="text-sm text-blue-900 mb-3 font-medium">Track your orders using your phone number</p>
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                placeholder="Enter phone number (e.g., 08012345678)"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+                className="flex-1 px-4 py-2 border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={fetchOrdersByPhone}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 text-sm whitespace-nowrap"
+              >
+                Search
+              </button>
             </div>
           </div>
         </div>
       </div>
+    )
+  }
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-[430px] mx-auto px-4 py-6">
         
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex items-center mb-6">
+          <a href="/account" className="mr-3">
+            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+        </div>
+
+        {/* Search Again */}
+        <div className="bg-gray-100 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <span className="text-sm text-gray-700">Phone: <strong>{searchPhone}</strong></span>
           <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            onClick={() => {
+              setOrders([])
+              setSearchPhone('')
+            }}
+            className="text-blue-600 text-sm font-medium"
           >
-            All Orders ({orders.length})
-          </button>
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'pending'
-                ? 'bg-yellow-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Pending ({orders.filter(o => o.orderStatus === 'Pending').length})
-          </button>
-          <button
-            onClick={() => setFilter('confirmed')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'confirmed'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Confirmed ({orders.filter(o => o.orderStatus === 'Confirmed').length})
-          </button>
-          <button
-            onClick={() => setFilter('delivered')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'delivered'
-                ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Delivered ({orders.filter(o => o.orderStatus === 'Delivered').length})
+            Change
           </button>
         </div>
 
-        {/* Orders List */}
-        <div className="space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="bg-white rounded-xl p-12 text-center">
-              <p className="text-gray-500">No orders found</p>
-            </div>
-          ) : (
-            filteredOrders.map(order => (
-              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                
-                {/* Order Header */}
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{order.orderId}</h3>
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          order.orderStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {order.orderStatus}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {order.createdAt?.toDate?.()?.toLocaleString() || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-                      <p className="text-2xl font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</p>
-                    </div>
+        {/* Orders */}
+        {orders.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl">
+            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <p className="text-gray-500 mb-4">No orders found for this phone number</p>
+            <a href="/" className="text-blue-600 font-medium">Start Shopping →</a>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {orders.map(order => (
+              <div key={order.id} className="bg-white rounded-xl p-4 shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="font-bold text-gray-900">{order.orderId}</p>
+                    <p className="text-xs text-gray-500">
+                      {order.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                    </p>
                   </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                    order.orderStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                    order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {order.orderStatus}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 mb-3">
+                  {order.items.slice(0, 2).map((item, i) => (
+                    <div key={i} className="flex items-center text-sm">
+                      <img src={item.image} alt={item.name} className="w-10 h-10 object-contain mr-2 bg-gray-50 rounded" />
+                      <span className="text-gray-700 flex-1 line-clamp-1">{item.name}</span>
+                      <span className="text-gray-500">×{item.quantity}</span>
+                    </div>
+                  ))}
+                  {order.items.length > 2 && (
+                    <p className="text-xs text-gray-500">+{order.items.length - 2} more items</p>
+                  )}
+                </div>
+                
+                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                  <span className="text-sm text-gray-600">Total</span>
+                  <span className="text-lg font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</span>
                 </div>
 
-                {/* Order Details */}
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    
-                    {/* Customer Info */}
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 mb-3">Customer Information</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex">
-                          <span className="text-gray-600 w-24">Name:</span>
-                          <span className="text-gray-900 font-medium">{order.customer.name}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 w-24">Phone:</span>
-                          <span className="text-gray-900 font-medium">
-                            <a href={`tel:${order.customer.phone}`} className="text-blue-600 hover:underline">
-                              {order.customer.phone}
-                            </a>
-                          </span>
-                        </div>
-                        {order.customer.email && (
-                          <div className="flex">
-                            <span className="text-gray-600 w-24">Email:</span>
-                            <span className="text-gray-900">{order.customer.email}</span>
-                          </div>
-                        )}
-                        <div className="flex">
-                          <span className="text-gray-600 w-24">Hall:</span>
-                          <span className="text-gray-900">{order.customer.hall}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 w-24">Address:</span>
-                          <span className="text-gray-900">{order.customer.address}</span>
-                        </div>
-                        {order.customer.notes && (
-                          <div className="flex">
-                            <span className="text-gray-600 w-24">Notes:</span>
-                            <span className="text-gray-900 italic">{order.customer.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Payment Info */}
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 mb-3">Payment Information</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex">
-                          <span className="text-gray-600 w-32">Payment Method:</span>
-                          <span className="text-gray-900 font-medium">
-                            {order.paymentMethod === 'delivery' ? 'Pay on Delivery' : 'Paystack'}
-                          </span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 w-32">Payment Status:</span>
-                          <span className={`font-semibold ${
-                            order.paymentStatus === 'Paid' ? 'text-green-600' : 'text-yellow-600'
-                          }`}>
-                            {order.paymentStatus}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Items */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-bold text-gray-900 mb-3">Order Items</h4>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Price</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {order.items.map((item, index) => (
-                            <tr key={index}>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center">
-                                  {item.image && (
-                                    <img 
-                                      src={item.image} 
-                                      alt={item.name}
-                                      className="w-10 h-10 rounded object-cover mr-3"
-                                    />
-                                  )}
-                                  <span className="text-sm text-gray-900">{item.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">₦{item.price.toLocaleString()}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{item.quantity}</td>
-                              <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                                ₦{(item.price * item.quantity).toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    {order.orderStatus === 'Pending' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'Confirmed')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
-                      >
-                        ✓ Confirm Order
-                      </button>
-                    )}
-                    {order.orderStatus === 'Confirmed' && (
-                      <button
-                        onClick={() => handleUpdateStatus(order.id, 'Delivered')}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition"
-                      >
-                        ✓ Mark as Delivered
-                      </button>
-                    )}
-                    
-                      <a href={`https://wa.me/${order.customer.phone.replace(/\D/g, '')}?text=Hello ${order.customer.name}, your order ${order.orderId} has been received.`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                      </svg>
-                      Contact Customer
-                    </a>
-                  </div>
-
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <a 
+                    href={`https://wa.me/2349032535251?text=Hi, I want to check on my order ${order.orderId}`}
+                    target="_blank"
+                    className="text-green-600 text-sm font-medium flex items-center justify-center"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    Track Order via WhatsApp
+                  </a>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

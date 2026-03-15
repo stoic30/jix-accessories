@@ -56,6 +56,8 @@ const fetchStats = async () => {
     
     // Count low stock products (NOW products exists!)
     const lowStockProducts = productsData.filter(p => p.stock < 5 && p.stock > 0)
+
+    .filter(order => order.customer.phone === searchPhone)
     
     setStats({
       totalProducts: productsSnap.size,
