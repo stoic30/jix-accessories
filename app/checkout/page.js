@@ -19,9 +19,9 @@ export default function CheckoutPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [PaystackButton, setPaystackButton] = useState(null)
-  const [referralStatus, setReferralStatus] = useState(null) // null, 'valid', 'invalid'
+  const [referralStatus, setReferralStatus] = useState(null)
+  const [referralData, setReferralData] = useState(null) // Store referral data
 
-  // Load Paystack only in browser
   useEffect(() => {
     if (typeof window !== 'undefined') {
       import('react-paystack').then((module) => {
@@ -52,50 +52,58 @@ export default function CheckoutPage() {
     }))
   }
 
-  // Validate referral code
-const validateReferralCode = async (code) => {
-  if (!code || code.trim() === '') {
-    setReferralStatus(null)
-    return null
+  // Calculate commission based on order total
+  const calculateCommission = (orderTotal, commissionRate) => {
+    return Math.round((orderTotal * commissionRate) / 100)
   }
 
-  console.log('🔍 Checking referral code:', code) // DEBUG
-
-  try {
-    const upperCode = code.toUpperCase().trim()
-    console.log('🔍 Looking for document:', upperCode) // DEBUG
-    
-    const referralRef = doc(db, 'referrals', upperCode)
-    const referralSnap = await getDoc(referralRef)
-
-    console.log('🔍 Document exists?', referralSnap.exists()) // DEBUG
-    console.log('🔍 Document data:', referralSnap.data()) // DEBUG
-
-    if (referralSnap.exists()) {
-      const data = referralSnap.data()
-      console.log('🔍 isActive?', data.isActive) // DEBUG
-      
-      if (data.isActive) {
-        setReferralStatus('valid')
-        return data
-      } else {
-        console.log('❌ Code exists but is inactive')
-        setReferralStatus('invalid')
-        return null
-      }
-    } else {
-      console.log('❌ Document does not exist')
-      setReferralStatus('invalid')
+  const validateReferralCode = async (code) => {
+    if (!code || code.trim() === '') {
+      setReferralStatus(null)
+      setReferralData(null)
       return null
     }
-  } catch (error) {
-    console.error('❌ Error validating referral:', error)
-    setReferralStatus('invalid')
-    return null
-  }
-}
 
-  // Handle referral code input with debounce
+    console.log('🔍 Checking referral code:', code)
+
+    try {
+      const upperCode = code.toUpperCase().trim()
+      console.log('🔍 Looking for document:', upperCode)
+      
+      const referralRef = doc(db, 'referrals', upperCode)
+      const referralSnap = await getDoc(referralRef)
+
+      console.log('🔍 Document exists?', referralSnap.exists())
+      console.log('🔍 Document data:', referralSnap.data())
+
+      if (referralSnap.exists()) {
+        const data = referralSnap.data()
+        console.log('🔍 isActive?', data.isActive)
+        
+        if (data.isActive) {
+          setReferralStatus('valid')
+          setReferralData(data)
+          return data
+        } else {
+          console.log('❌ Code exists but is inactive')
+          setReferralStatus('invalid')
+          setReferralData(null)
+          return null
+        }
+      } else {
+        console.log('❌ Document does not exist')
+        setReferralStatus('invalid')
+        setReferralData(null)
+        return null
+      }
+    } catch (error) {
+      console.error('❌ Error validating referral:', error)
+      setReferralStatus('invalid')
+      setReferralData(null)
+      return null
+    }
+  }
+
   const handleReferralChange = async (e) => {
     const code = e.target.value.toUpperCase()
     setFormData(prev => ({ ...prev, referralCode: code }))
@@ -104,6 +112,7 @@ const validateReferralCode = async (code) => {
       await validateReferralCode(code)
     } else {
       setReferralStatus(null)
+      setReferralData(null)
     }
   }
 
@@ -122,11 +131,10 @@ const validateReferralCode = async (code) => {
     try {
       await runTransaction(db, async (transaction) => {
         
-        // Validate referral code if provided
-        let referralData = null
+        let validatedReferralData = null
         if (formData.referralCode && formData.referralCode.trim() !== '') {
-          referralData = await validateReferralCode(formData.referralCode)
-          if (!referralData) {
+          validatedReferralData = await validateReferralCode(formData.referralCode)
+          if (!validatedReferralData) {
             throw new Error('Invalid referral code. Please check and try again.')
           }
         }
@@ -165,6 +173,11 @@ const validateReferralCode = async (code) => {
           })
         }
         
+        const orderTotal = getCartTotal()
+        const commission = validatedReferralData 
+          ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
+          : 0
+
         const orderId = paymentRef || `JIX-${Date.now()}`
         const order = {
           orderId: orderId,
@@ -183,14 +196,15 @@ const validateReferralCode = async (code) => {
             quantity: item.quantity,
             image: item.image
           })),
-          totalAmount: getCartTotal(),
+          totalAmount: orderTotal,
           paymentMethod: formData.paymentMethod,
           paymentStatus: isPaid ? 'Paid' : 'Pending',
           paymentReference: paymentRef || null,
-          referralCode: referralData ? formData.referralCode.toUpperCase() : null,
-          referralDetails: referralData ? {
-            referrerName: referralData.referrerName,
-            commission: referralData.commission
+          referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
+          referralDetails: validatedReferralData ? {
+            referrerName: validatedReferralData.referrerName,
+            commissionRate: validatedReferralData.commissionRate,
+            commissionAmount: commission
           } : null,
           orderStatus: 'Pending',
           createdAt: new Date(),
@@ -200,12 +214,11 @@ const validateReferralCode = async (code) => {
         const orderRef = doc(collection(db, 'orders'))
         transaction.set(orderRef, order)
 
-        // Update referral stats if valid code was used
-        if (referralData) {
+        if (validatedReferralData) {
           const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
           transaction.update(referralRef, {
-            totalReferrals: (referralData.totalReferrals || 0) + 1,
-            totalEarnings: (referralData.totalEarnings || 0) + referralData.commission,
+            totalReferrals: (validatedReferralData.totalReferrals || 0) + 1,
+            totalEarnings: (validatedReferralData.totalEarnings || 0) + commission,
             lastReferralAt: new Date()
           })
         }
@@ -241,7 +254,6 @@ const validateReferralCode = async (code) => {
       return
     }
 
-    // Validate referral code if provided
     if (formData.referralCode && formData.referralCode.trim() !== '') {
       const isValid = await validateReferralCode(formData.referralCode)
       if (!isValid) {
@@ -288,6 +300,11 @@ const validateReferralCode = async (code) => {
     onSuccess: onPaystackSuccess,
     onClose: onPaystackClose
   }
+
+  // Calculate estimated commission for display
+  const estimatedCommission = referralData 
+    ? calculateCommission(getCartTotal(), referralData.commissionRate)
+    : 0
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
@@ -412,7 +429,6 @@ const validateReferralCode = async (code) => {
                 />
               </div>
 
-              {/* Referral Code Input */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Referral Code (Optional)
@@ -432,12 +448,14 @@ const validateReferralCode = async (code) => {
                   }`}
                 />
                 {referralStatus === 'valid' && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
-                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Valid referral code ✓
-                  </p>
+                  <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
+                    <p className="text-xs text-green-700 font-medium flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Valid code! {referralData?.referrerName} earns ₦{estimatedCommission.toLocaleString()} ({referralData?.commissionRate}%)
+                    </p>
+                  </div>
                 )}
                 {referralStatus === 'invalid' && (
                   <p className="text-xs text-red-600 mt-1 flex items-center">

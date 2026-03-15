@@ -15,7 +15,6 @@ export default function ReferralsPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch referrals
       const refQuery = query(collection(db, 'referrals'), orderBy('totalEarnings', 'desc'))
       const refSnapshot = await getDocs(refQuery)
       const refData = refSnapshot.docs.map(doc => ({
@@ -23,7 +22,6 @@ export default function ReferralsPage() {
         ...doc.data()
       }))
 
-      // Fetch orders with referrals
       const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
       const ordersSnapshot = await getDocs(ordersQuery)
       const ordersData = ordersSnapshot.docs
@@ -86,8 +84,8 @@ export default function ReferralsPage() {
                   <p className="text-lg font-bold text-green-600">₦{(ref.totalEarnings || 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-600 mb-1">Per Sale</p>
-                  <p className="text-lg font-bold text-purple-600">₦{ref.commission}</p>
+                  <p className="text-xs text-gray-600 mb-1">Rate</p>
+                  <p className="text-lg font-bold text-purple-600">{ref.commissionRate}%</p>
                 </div>
               </div>
             </div>
@@ -111,7 +109,10 @@ export default function ReferralsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</p>
-                    <p className="text-xs text-green-600">+₦{order.referralDetails?.commission || 0}</p>
+                    <p className="text-xs text-green-600">
+                      +₦{order.referralDetails?.commissionAmount?.toLocaleString() || 0} 
+                      {order.referralDetails?.commissionRate && ` (${order.referralDetails.commissionRate}%)`}
+                    </p>
                   </div>
                 </div>
                 <div className="bg-blue-50 rounded px-2 py-1 inline-block">
