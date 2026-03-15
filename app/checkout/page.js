@@ -2,7 +2,7 @@
 
 import { useCart } from '@/context/CartContext'
 import { useState, useEffect } from 'react'
-import { collection, doc, runTransaction } from 'firebase/firestore'
+import { collection, doc, runTransaction, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export default function CheckoutPage() {
@@ -14,10 +14,12 @@ export default function CheckoutPage() {
     address: '',
     hall: '',
     notes: '',
-    paymentMethod: 'paystack'
+    paymentMethod: 'paystack',
+    referralCode: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [PaystackButton, setPaystackButton] = useState(null)
+  const [referralStatus, setReferralStatus] = useState(null) // null, 'valid', 'invalid'
 
   // Load Paystack only in browser
   useEffect(() => {
@@ -50,6 +52,43 @@ export default function CheckoutPage() {
     }))
   }
 
+  // Validate referral code
+  const validateReferralCode = async (code) => {
+    if (!code || code.trim() === '') {
+      setReferralStatus(null)
+      return null
+    }
+
+    try {
+      const referralRef = doc(db, 'referrals', code.toUpperCase())
+      const referralSnap = await getDoc(referralRef)
+
+      if (referralSnap.exists() && referralSnap.data().isActive) {
+        setReferralStatus('valid')
+        return referralSnap.data()
+      } else {
+        setReferralStatus('invalid')
+        return null
+      }
+    } catch (error) {
+      console.error('Error validating referral:', error)
+      setReferralStatus('invalid')
+      return null
+    }
+  }
+
+  // Handle referral code input with debounce
+  const handleReferralChange = async (e) => {
+    const code = e.target.value.toUpperCase()
+    setFormData(prev => ({ ...prev, referralCode: code }))
+    
+    if (code.length >= 3) {
+      await validateReferralCode(code)
+    } else {
+      setReferralStatus(null)
+    }
+  }
+
   const onPaystackSuccess = async (reference) => {
     console.log('✅ Payment successful:', reference)
     setIsSubmitting(true)
@@ -65,6 +104,15 @@ export default function CheckoutPage() {
     try {
       await runTransaction(db, async (transaction) => {
         
+        // Validate referral code if provided
+        let referralData = null
+        if (formData.referralCode && formData.referralCode.trim() !== '') {
+          referralData = await validateReferralCode(formData.referralCode)
+          if (!referralData) {
+            throw new Error('Invalid referral code. Please check and try again.')
+          }
+        }
+
         const productRefs = []
         const productSnapshots = []
         
@@ -121,6 +169,11 @@ export default function CheckoutPage() {
           paymentMethod: formData.paymentMethod,
           paymentStatus: isPaid ? 'Paid' : 'Pending',
           paymentReference: paymentRef || null,
+          referralCode: referralData ? formData.referralCode.toUpperCase() : null,
+          referralDetails: referralData ? {
+            referrerName: referralData.referrerName,
+            commission: referralData.commission
+          } : null,
           orderStatus: 'Pending',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -128,6 +181,16 @@ export default function CheckoutPage() {
 
         const orderRef = doc(collection(db, 'orders'))
         transaction.set(orderRef, order)
+
+        // Update referral stats if valid code was used
+        if (referralData) {
+          const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
+          transaction.update(referralRef, {
+            totalReferrals: (referralData.totalReferrals || 0) + 1,
+            totalEarnings: (referralData.totalEarnings || 0) + referralData.commission,
+            lastReferralAt: new Date()
+          })
+        }
       })
       
       clearCart()
@@ -136,7 +199,9 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Error placing order:', error)
       
-      if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
+      if (error.message.includes('Invalid referral code')) {
+        alert(error.message)
+      } else if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
         alert(error.message)
       } else if (error.message.includes('permission')) {
         alert('Permission error. Please contact support.')
@@ -158,6 +223,16 @@ export default function CheckoutPage() {
       return
     }
 
+    // Validate referral code if provided
+    if (formData.referralCode && formData.referralCode.trim() !== '') {
+      const isValid = await validateReferralCode(formData.referralCode)
+      if (!isValid) {
+        alert('Invalid referral code. Please remove it or enter a valid code.')
+        setIsSubmitting(false)
+        return
+      }
+    }
+
     if (formData.paymentMethod === 'paystack') {
       if (!formData.email) {
         alert('Email is required for card payment')
@@ -165,12 +240,10 @@ export default function CheckoutPage() {
         return
       }
       
-      // Validation passed, Paystack button will handle payment
       setIsSubmitting(false)
       return
     }
 
-    // Pay on delivery
     await createOrder(false, null)
   }
 
@@ -289,7 +362,7 @@ export default function CheckoutPage() {
                   <option value="Bello Hall">Bello Hall</option>
                   <option value="Idia Hall">Idia Hall</option>
                   <option value="Other">Other</option>
-                  </select>
+                </select>
               </div>
 
               <div>
@@ -320,6 +393,49 @@ export default function CheckoutPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
+
+              {/* Referral Code Input */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Referral Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="referralCode"
+                  value={formData.referralCode}
+                  onChange={handleReferralChange}
+                  placeholder="e.g., JAFAR001"
+                  className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 uppercase ${
+                    referralStatus === 'valid' 
+                      ? 'border-green-500 focus:ring-green-500' 
+                      : referralStatus === 'invalid'
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {referralStatus === 'valid' && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Valid referral code ✓
+                  </p>
+                )}
+                {referralStatus === 'invalid' && (
+                  <p className="text-xs text-red-600 mt-1 flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    Invalid code
+                  </p>
+                )}
+                {!referralStatus && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Have a referral code? Enter it to support your referrer
+                  </p>
+                )}
+              </div>
+
             </div>
           </div>
 
@@ -328,7 +444,7 @@ export default function CheckoutPage() {
             
             <div className="space-y-3">
               
-               <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
+              <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
                 <input
                   type="radio"
                   name="paymentMethod"

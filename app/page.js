@@ -316,7 +316,7 @@ export default async function Home() {
         )}
 
         <div className="mx-4 mt-2">
-          <a href="https://wa.me/2349153048279?text=Hi, I need help repairing my phone" target="_blank" rel="noopener noreferrer" className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300">
+          <a href="https://wa.me/2348105021029?text=Hi, I need help repairing my phone" target="_blank" rel="noopener noreferrer" className="block bg-gradient-to-r from-green-500 to-green-600 text-white p-5 rounded-2xl shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-base font-bold mb-1">Need Phone Repair?</p>
