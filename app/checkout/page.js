@@ -53,29 +53,47 @@ export default function CheckoutPage() {
   }
 
   // Validate referral code
-  const validateReferralCode = async (code) => {
-    if (!code || code.trim() === '') {
-      setReferralStatus(null)
-      return null
-    }
+const validateReferralCode = async (code) => {
+  if (!code || code.trim() === '') {
+    setReferralStatus(null)
+    return null
+  }
 
-    try {
-      const referralRef = doc(db, 'referrals', code.toUpperCase())
-      const referralSnap = await getDoc(referralRef)
+  console.log('🔍 Checking referral code:', code) // DEBUG
 
-      if (referralSnap.exists() && referralSnap.data().isActive) {
+  try {
+    const upperCode = code.toUpperCase().trim()
+    console.log('🔍 Looking for document:', upperCode) // DEBUG
+    
+    const referralRef = doc(db, 'referrals', upperCode)
+    const referralSnap = await getDoc(referralRef)
+
+    console.log('🔍 Document exists?', referralSnap.exists()) // DEBUG
+    console.log('🔍 Document data:', referralSnap.data()) // DEBUG
+
+    if (referralSnap.exists()) {
+      const data = referralSnap.data()
+      console.log('🔍 isActive?', data.isActive) // DEBUG
+      
+      if (data.isActive) {
         setReferralStatus('valid')
-        return referralSnap.data()
+        return data
       } else {
+        console.log('❌ Code exists but is inactive')
         setReferralStatus('invalid')
         return null
       }
-    } catch (error) {
-      console.error('Error validating referral:', error)
+    } else {
+      console.log('❌ Document does not exist')
       setReferralStatus('invalid')
       return null
     }
+  } catch (error) {
+    console.error('❌ Error validating referral:', error)
+    setReferralStatus('invalid')
+    return null
   }
+}
 
   // Handle referral code input with debounce
   const handleReferralChange = async (e) => {
@@ -404,7 +422,7 @@ export default function CheckoutPage() {
                   name="referralCode"
                   value={formData.referralCode}
                   onChange={handleReferralChange}
-                  placeholder="e.g., JAFAR001"
+                  placeholder="e.g., REFER001"
                   className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 uppercase ${
                     referralStatus === 'valid' 
                       ? 'border-green-500 focus:ring-green-500' 
