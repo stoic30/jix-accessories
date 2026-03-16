@@ -158,7 +158,7 @@ export default function AccountPage() {
             </svg>
           </a>
 
-          <a href={`https://wa.me/2349032535251?text=Hi, I need support on`}  target="_blank" className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <a href={`https://wa.me/2348105021029?text=Hi, I need support on`}  target="_blank" className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition flex items-center justify-between">
             <div className="flex items-center">
 
                         <svg className="w-5 h-5 text-green-600 mr-3" fill="currentColor" viewBox="0 0 24 24">
