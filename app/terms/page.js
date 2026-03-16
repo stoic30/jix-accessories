@@ -36,7 +36,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-bold text-gray-900 mb-2">5. Delivery</h2>
-            <p>Free delivery within UI campus. Delivery time is 2-3 business days from order confirmation.</p>
+            <p>Free delivery within UI campus. Delivery time is 1-2 business days from order confirmation.</p>
           </section>
 
           <section>

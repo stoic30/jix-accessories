@@ -62,7 +62,7 @@ function OrderSuccessContent() {
           </p>
           <p className="text-xs text-gray-600">
             We will call you within 1 hour to confirm your order and delivery time. 
-            Delivery typically takes 2-3 business days within UI.
+            Delivery typically takes 1-2 business days within UI.
           </p>
         </div>
 
