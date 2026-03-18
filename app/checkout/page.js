@@ -614,7 +614,7 @@ export default function CheckoutPage() {
                   name="referralCode"
                   value={formData.referralCode}
                   onChange={handleReferralChange}
-                  placeholder="e.g., JAFAR001"
+                  placeholder="e.g., REFER001"
                   className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 uppercase ${
                     referralStatus === 'valid' 
                       ? 'border-green-500 focus:ring-green-500' 
