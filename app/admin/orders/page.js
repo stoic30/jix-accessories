@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
-// Format phone number for WhatsApp
 const formatWhatsAppNumber = (phone) => {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '')
   
