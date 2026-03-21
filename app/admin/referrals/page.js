@@ -58,7 +58,6 @@ export default function ReferralsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Referrals</h1>
         </div>
 
-        {/* Referrer Stats */}
         <div className="space-y-3 mb-6">
           {referrals.map(ref => (
             <div key={ref.id} className="bg-white rounded-xl p-4 shadow-sm">
@@ -92,7 +91,6 @@ export default function ReferralsPage() {
           ))}
         </div>
 
-        {/* Recent Referral Orders */}
         <h2 className="text-lg font-bold text-gray-900 mb-3">Recent Referral Orders</h2>
         {orders.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center">

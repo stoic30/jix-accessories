@@ -2,7 +2,7 @@
 
 import { useCart } from '@/context/CartContext'
 import { useState, useEffect } from 'react'
-import { collection, doc, runTransaction, getDoc, setDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export default function CheckoutPage() {
@@ -74,16 +74,11 @@ export default function CheckoutPage() {
           setReferralStatus('valid')
           setReferralData(data)
           return data
-        } else {
-          setReferralStatus('invalid')
-          setReferralData(null)
-          return null
         }
-      } else {
-        setReferralStatus('invalid')
-        setReferralData(null)
-        return null
       }
+      setReferralStatus('invalid')
+      setReferralData(null)
+      return null
     } catch (error) {
       console.error('❌ Error validating referral:', error)
       setReferralStatus('invalid')
@@ -104,58 +99,31 @@ export default function CheckoutPage() {
     }
   }
 
-  // CRITICAL: Emergency order save if main transaction fails
-  const emergencySaveOrder = async (orderId, orderData) => {
-    try {
-      console.log('🚨 EMERGENCY SAVE: Main transaction failed, saving order anyway...')
-      
-      const orderRef = doc(db, 'orders', orderId)
-      await setDoc(orderRef, {
-        ...orderData,
-        emergencySave: true,
-        emergencySaveAt: new Date(),
-        note: 'Order saved via emergency backup - payment confirmed but main transaction failed'
-      })
-      
-      console.log('✅ EMERGENCY SAVE SUCCESSFUL')
-      return true
-    } catch (error) {
-      console.error('❌ EMERGENCY SAVE FAILED:', error)
-      
-      // Last resort: Save to localStorage
-      const failedOrders = JSON.parse(localStorage.getItem('failedOrders') || '[]')
-      failedOrders.push({
-        orderId,
-        orderData,
-        timestamp: new Date().toISOString(),
-        error: error.message
-      })
-      localStorage.setItem('failedOrders', JSON.stringify(failedOrders))
-      
-      console.log('💾 Order saved to localStorage backup')
-      return false
-    }
-  }
-
+  // ===== CRITICAL FIX: PAYSTACK SUCCESS HANDLER =====
   const onPaystackSuccess = async (reference) => {
-    console.log('✅ PAYMENT SUCCESSFUL:', reference)
+    console.log('🎉 PAYMENT SUCCESS:', reference.reference)
     setIsSubmitting(true)
-
+    
     try {
-      // Try to save order normally
-      await createOrder(true, reference.reference)
-    } catch (error) {
-      console.error('❌ Error after payment:', error)
-      
-      // CRITICAL: Payment succeeded but order save failed
-      // Save order anyway using emergency backup
+      // Get referral data if code exists
+      let validatedReferralData = null
+      if (formData.referralCode && formData.referralCode.trim() !== '') {
+        const upperCode = formData.referralCode.toUpperCase().trim()
+        const referralRef = doc(db, 'referrals', upperCode)
+        const referralSnap = await getDoc(referralRef)
+        if (referralSnap.exists() && referralSnap.data().isActive) {
+          validatedReferralData = referralSnap.data()
+        }
+      }
+
       const orderTotal = getCartTotal()
-      const commission = referralData 
-        ? calculateCommission(orderTotal, referralData.commissionRate)
+      const commission = validatedReferralData 
+        ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
         : 0
 
-      const emergencyOrderData = {
-        orderId: reference.reference,
+      const orderId = reference.reference
+      const orderData = {
+        orderId: orderId,
         customer: {
           name: formData.name,
           phone: formData.phone,
@@ -175,10 +143,10 @@ export default function CheckoutPage() {
         paymentMethod: 'paystack',
         paymentStatus: 'Paid',
         paymentReference: reference.reference,
-        referralCode: referralData ? formData.referralCode.toUpperCase() : null,
-        referralDetails: referralData ? {
-          referrerName: referralData.referrerName,
-          commissionRate: referralData.commissionRate,
+        referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
+        referralDetails: validatedReferralData ? {
+          referrerName: validatedReferralData.referrerName,
+          commissionRate: validatedReferralData.commissionRate,
           commissionAmount: commission
         } : null,
         orderStatus: 'Pending',
@@ -186,11 +154,77 @@ export default function CheckoutPage() {
         updatedAt: new Date()
       }
 
-      await emergencySaveOrder(reference.reference, emergencyOrderData)
+      console.log('💾 Saving order to Firebase...')
       
-      // Still clear cart and redirect
+      // CRITICAL: Save order DIRECTLY with payment reference as document ID
+      const orderRef = doc(db, 'orders', orderId)
+      await setDoc(orderRef, orderData)
+      
+      console.log('✅ ORDER SAVED SUCCESSFULLY!')
+
+      // Update stock (non-blocking)
+      try {
+        for (const item of cart) {
+          const productRef = doc(db, 'products', item.id)
+          const productSnap = await getDoc(productRef)
+          
+          if (productSnap.exists()) {
+            const currentStock = productSnap.data().stock || 0
+            const newStock = Math.max(0, currentStock - item.quantity)
+            
+            await setDoc(productRef, {
+              stock: newStock,
+              inStock: newStock > 0,
+              updatedAt: new Date()
+            }, { merge: true })
+          }
+        }
+        console.log('✅ Stock updated')
+      } catch (stockError) {
+        console.error('⚠️ Stock update failed (non-critical):', stockError)
+      }
+
+      // Update referral stats (non-blocking)
+      if (validatedReferralData) {
+        try {
+          const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
+          const refSnap = await getDoc(referralRef)
+          if (refSnap.exists()) {
+            const refData = refSnap.data()
+            await setDoc(referralRef, {
+              totalReferrals: (refData.totalReferrals || 0) + 1,
+              totalEarnings: (refData.totalEarnings || 0) + commission,
+              lastReferralAt: new Date()
+            }, { merge: true })
+          }
+          console.log('✅ Referral updated')
+        } catch (refError) {
+          console.error('⚠️ Referral update failed (non-critical):', refError)
+        }
+      }
+
+      // Clear cart and redirect
       clearCart()
-      alert('⚠️ Payment successful! Your order is being processed. Check your email or WhatsApp us if you don\'t see it.')
+      console.log('✅ Redirecting to success page...')
+      window.location.href = `/order-success?orderId=${orderId}`
+      
+    } catch (error) {
+      console.error('🚨 CRITICAL ERROR after payment:', error)
+      
+      // Emergency backup - save to localStorage
+      const backup = {
+        reference: reference.reference,
+        customer: formData,
+        cart: cart,
+        totalAmount: getCartTotal(),
+        timestamp: new Date().toISOString(),
+        error: error.message
+      }
+      localStorage.setItem(`failed_order_${reference.reference}`, JSON.stringify(backup))
+      
+      alert(`⚠️ Payment received! There was a technical error saving your order.\n\nYour payment reference: ${reference.reference}\n\nPlease screenshot this and contact us immediately on WhatsApp.`)
+      
+      // Still try to redirect
       window.location.href = `/order-success?orderId=${reference.reference}`
     }
   }
@@ -200,258 +234,136 @@ export default function CheckoutPage() {
     setIsSubmitting(false)
   }
 
-  const createOrder = async (isPaid = false, paymentRef = null) => {
+  // Pay on delivery handler
+  const handlePayOnDelivery = async () => {
     try {
-      // Don't use transaction for paid orders - too risky
-      if (isPaid && paymentRef) {
-        console.log('💳 Payment confirmed, saving order directly...')
-        
-        let validatedReferralData = null
-        if (formData.referralCode && formData.referralCode.trim() !== '') {
-          validatedReferralData = await validateReferralCode(formData.referralCode)
+      setIsSubmitting(true)
+
+      // Validate referral if provided
+      let validatedReferralData = null
+      if (formData.referralCode && formData.referralCode.trim() !== '') {
+        validatedReferralData = await validateReferralCode(formData.referralCode)
+        if (!validatedReferralData) {
+          alert('Invalid referral code. Please remove it or enter a valid code.')
+          setIsSubmitting(false)
+          return
         }
-
-        const orderTotal = getCartTotal()
-        const commission = validatedReferralData 
-          ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
-          : 0
-
-        const orderId = paymentRef
-        const order = {
-          orderId: orderId,
-          customer: {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            hall: formData.hall,
-            notes: formData.notes
-          },
-          items: cart.map(item => ({
-            productId: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image
-          })),
-          totalAmount: orderTotal,
-          paymentMethod: formData.paymentMethod,
-          paymentStatus: 'Paid',
-          paymentReference: paymentRef,
-          referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
-          referralDetails: validatedReferralData ? {
-            referrerName: validatedReferralData.referrerName,
-            commissionRate: validatedReferralData.commissionRate,
-            commissionAmount: commission
-          } : null,
-          orderStatus: 'Pending',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-
-        // Save order first (most important)
-        const orderRef = doc(db, 'orders', orderId)
-        await setDoc(orderRef, order)
-        console.log('✅ Order saved successfully')
-
-        // Update stock after (less critical)
-        try {
-          for (const item of cart) {
-            const productRef = doc(db, 'products', item.id)
-            const productSnap = await getDoc(productRef)
-            
-            if (productSnap.exists()) {
-              const currentStock = productSnap.data().stock || 0
-              const newStock = Math.max(0, currentStock - item.quantity)
-              
-              await setDoc(productRef, {
-                ...productSnap.data(),
-                stock: newStock,
-                inStock: newStock > 0,
-                updatedAt: new Date()
-              }, { merge: true })
-            }
-          }
-          console.log('✅ Stock updated')
-        } catch (stockError) {
-          console.error('⚠️ Stock update failed (non-critical):', stockError)
-          // Don't throw - order is already saved
-        }
-
-        // Update referral stats (optional)
-        if (validatedReferralData) {
-          try {
-            const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
-            const refSnap = await getDoc(referralRef)
-            if (refSnap.exists()) {
-              const refData = refSnap.data()
-              await setDoc(referralRef, {
-                ...refData,
-                totalReferrals: (refData.totalReferrals || 0) + 1,
-                totalEarnings: (refData.totalEarnings || 0) + commission,
-                lastReferralAt: new Date()
-              }, { merge: true })
-            }
-            console.log('✅ Referral stats updated')
-          } catch (refError) {
-            console.error('⚠️ Referral update failed (non-critical):', refError)
-            // Don't throw - order is already saved
-          }
-        }
-
-        clearCart()
-        window.location.href = `/order-success?orderId=${orderId}`
-        return
       }
 
-      // For pay on delivery, use transaction (safer since no money involved yet)
-      await runTransaction(db, async (transaction) => {
+      // Check stock
+      for (const item of cart) {
+        const productRef = doc(db, 'products', item.id)
+        const productSnap = await getDoc(productRef)
         
-        let validatedReferralData = null
-        if (formData.referralCode && formData.referralCode.trim() !== '') {
-          validatedReferralData = await validateReferralCode(formData.referralCode)
-          if (!validatedReferralData) {
-            throw new Error('Invalid referral code. Please check and try again.')
-          }
+        if (!productSnap.exists()) {
+          throw new Error(`Product "${item.name}" not found`)
         }
+        
+        const currentStock = productSnap.data().stock || 0
+        if (currentStock < item.quantity) {
+          throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock.`)
+        }
+      }
 
-        const productRefs = []
-        const productSnapshots = []
-        
-        for (const item of cart) {
-          const productRef = doc(db, 'products', item.id)
-          productRefs.push(productRef)
-          const productSnap = await transaction.get(productRef)
-          productSnapshots.push({ ref: productRef, snap: productSnap, item })
-        }
-        
-        for (const { snap, item } of productSnapshots) {
-          if (!snap.exists()) {
-            throw new Error(`Product "${item.name}" not found`)
-          }
-          
-          const productData = snap.data()
-          const currentStock = productData.stock || 0
-          
-          if (currentStock < item.quantity) {
-            throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock. You have ${item.quantity} in cart. Please reduce quantity.`)
-          }
-        }
-        
-        for (const { ref, snap, item } of productSnapshots) {
-          const currentStock = snap.data().stock
-          const newStock = currentStock - item.quantity
-          
-          transaction.update(ref, {
-            stock: newStock,
-            inStock: newStock > 0,
-            updatedAt: new Date()
-          })
-        }
-        
-        const orderTotal = getCartTotal()
-        const commission = validatedReferralData 
-          ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
-          : 0
+      const orderTotal = getCartTotal()
+      const commission = validatedReferralData 
+        ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
+        : 0
 
-        const orderId = `JIX-${Date.now()}`
-        const order = {
-          orderId: orderId,
-          customer: {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            hall: formData.hall,
-            notes: formData.notes
-          },
-          items: cart.map(item => ({
-            productId: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image
-          })),
-          totalAmount: orderTotal,
-          paymentMethod: formData.paymentMethod,
-          paymentStatus: 'Pending',
-          paymentReference: null,
-          referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
-          referralDetails: validatedReferralData ? {
-            referrerName: validatedReferralData.referrerName,
-            commissionRate: validatedReferralData.commissionRate,
-            commissionAmount: commission
-          } : null,
-          orderStatus: 'Pending',
-          createdAt: new Date(),
+      const orderId = `JIX-${Date.now()}`
+      const orderData = {
+        orderId: orderId,
+        customer: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          hall: formData.hall,
+          notes: formData.notes
+        },
+        items: cart.map(item => ({
+          productId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        })),
+        totalAmount: orderTotal,
+        paymentMethod: 'delivery',
+        paymentStatus: 'Pending',
+        paymentReference: null,
+        referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
+        referralDetails: validatedReferralData ? {
+          referrerName: validatedReferralData.referrerName,
+          commissionRate: validatedReferralData.commissionRate,
+          commissionAmount: commission
+        } : null,
+        orderStatus: 'Pending',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      // Save order
+      const orderRef = doc(collection(db, 'orders'))
+      await setDoc(orderRef, orderData)
+
+      // Update stock
+      for (const item of cart) {
+        const productRef = doc(db, 'products', item.id)
+        const productSnap = await getDoc(productRef)
+        const currentStock = productSnap.data().stock
+        const newStock = currentStock - item.quantity
+        
+        await setDoc(productRef, {
+          stock: newStock,
+          inStock: newStock > 0,
           updatedAt: new Date()
-        }
+        }, { merge: true })
+      }
 
-        const orderRef = doc(collection(db, 'orders'))
-        transaction.set(orderRef, order)
-
-        if (validatedReferralData) {
-          const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
-          transaction.update(referralRef, {
-            totalReferrals: (validatedReferralData.totalReferrals || 0) + 1,
-            totalEarnings: (validatedReferralData.totalEarnings || 0) + commission,
+      // Update referral
+      if (validatedReferralData) {
+        const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
+        const refSnap = await getDoc(referralRef)
+        if (refSnap.exists()) {
+          const refData = refSnap.data()
+          await setDoc(referralRef, {
+            totalReferrals: (refData.totalReferrals || 0) + 1,
+            totalEarnings: (refData.totalEarnings || 0) + commission,
             lastReferralAt: new Date()
-          })
+          }, { merge: true })
         }
-      })
-      
+      }
+
       clearCart()
-      window.location.href = `/order-success?orderId=JIX-${Date.now()}`
+      window.location.href = `/order-success?orderId=${orderId}`
       
     } catch (error) {
-      console.error('Error placing order:', error)
-      
-      if (error.message.includes('Invalid referral code')) {
-        alert(error.message)
-      } else if (error.message.includes('Only') || error.message.includes('stock') || error.message.includes('not found')) {
-        alert(error.message)
-      } else if (error.message.includes('permission')) {
-        alert('Permission error. Please contact support.')
-      } else {
-        alert('Error placing order. Please try again.')
-      }
-      
+      console.error('Error:', error)
+      alert(error.message || 'Error placing order. Please try again.')
       setIsSubmitting(false)
-      throw error // Re-throw for emergency save to catch
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsSubmitting(true)
-
+    
     if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
       alert('Please fill in all required fields')
-      setIsSubmitting(false)
       return
-    }
-
-    if (formData.referralCode && formData.referralCode.trim() !== '') {
-      const isValid = await validateReferralCode(formData.referralCode)
-      if (!isValid) {
-        alert('Invalid referral code. Please remove it or enter a valid code.')
-        setIsSubmitting(false)
-        return
-      }
     }
 
     if (formData.paymentMethod === 'paystack') {
       if (!formData.email) {
         alert('Email is required for card payment')
-        setIsSubmitting(false)
         return
       }
-      
-      setIsSubmitting(false)
+      // Paystack button will handle payment
       return
     }
 
-    await createOrder(false, null)
+    // Pay on delivery
+    await handlePayOnDelivery()
   }
 
   const paystackConfig = {
@@ -731,7 +643,7 @@ export default function CheckoutPage() {
               <div>
                 {!formData.name || !formData.phone || !formData.address || !formData.hall || !formData.email ? (
                   <button
-                    type="submit"
+                    type="button"
                     className="w-full py-3 rounded-lg font-medium transition bg-gray-400 cursor-not-allowed text-white"
                     disabled
                   >
@@ -741,6 +653,7 @@ export default function CheckoutPage() {
                   <PaystackButton 
                     {...paystackConfig} 
                     className="w-full py-3 rounded-lg font-medium transition bg-blue-600 hover:bg-blue-700 text-white border-none cursor-pointer"
+                    disabled={isSubmitting}
                   />
                 )}
               </div>
@@ -770,3 +683,4 @@ export default function CheckoutPage() {
     </div>
   )
 }
+``
