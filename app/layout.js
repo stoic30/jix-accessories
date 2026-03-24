@@ -2,16 +2,39 @@ import './globals.css'
 import Navbar from '@/components/Navbar'
 import BottomNav from '@/components/BottomNav'
 import { CartProvider } from '@/context/CartContext'
-// In app/layout.js
 import ScrollToTop from '@/components/ScrollToTop'
 
 // Inside the body tag:
 <ScrollToTop />
 
 export const metadata = {
-  title: 'Jix Accessories - Premium Tech for Students',
-  description: 'Best phones, laptops & accessories in UI',
+  title: 'JIX Accessories - Tech Gadgets & Accessories',
+  description: 'Buy phones, laptops, accessories and more. Fast delivery across UI campus.',
+  metadataBase: new URL('https://jixaccessories.com'), 
+  openGraph: {
+    title: 'JIX Accessories - Tech Gadgets & Accessories',
+    description: 'Buy phones, laptops, accessories and more. Fast delivery across UI campus.',
+    url: 'https://jixaccessories.com',
+    siteName: 'JIX Accessories',
+    images: [
+      {
+        url: '/og-image.jpg', 
+        width: 1200,
+        height: 630,
+        alt: 'JIX Accessories',
+      }
+    ],
+    locale: 'en_NG',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'JIX Accessories',
+    description: 'Buy phones, laptops, accessories and more.',
+    images: ['/og-image.jpg'],
+  },
 }
+
 
 export default function RootLayout({ children }) {
   return (
