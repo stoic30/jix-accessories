@@ -1,320 +1,191 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { collection, getDocs, query } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    totalProducts: 0,
     totalOrders: 0,
     pendingOrders: 0,
-    revenue: 0
+    confirmedOrders: 0,
+    deliveredOrders: 0,
+    realRevenue: 0,
+    pendingRevenue: 0,
+    totalProducts: 0
   })
-  const [recentOrders, setRecentOrders] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser)
-        fetchStats()
-        fetchRecentOrders()
-      } else {
-        window.location.href = '/admin'
-      }
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
+    fetchStats()
   }, [])
 
-const fetchStats = async () => {
-  try {
-    const productsSnap = await getDocs(collection(db, 'products'))
-    const ordersSnap = await getDocs(collection(db, 'orders'))
-    
-    // GET PRODUCTS DATA
-    const productsData = productsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    
-    // GET ORDERS DATA
-    const ordersData = ordersSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    
-    // Count pending orders
-    const pendingCount = ordersData.filter(o => o.orderStatus === 'Pending').length
-    
-    // Calculate total revenue
-    const totalRevenue = ordersData.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
-    
-    // Count low stock products (NOW products exists!)
-    const lowStockProducts = productsData.filter(p => p.stock < 5 && p.stock > 0)
-    
-    
-    setStats({
-      totalProducts: productsSnap.size,
-      totalOrders: ordersSnap.size,
-      pendingOrders: pendingCount,
-      revenue: totalRevenue,
-      lowStockCount: lowStockProducts.length
-    })
-    
-    setLoading(false)
-  } catch (error) {
-    console.error('Error fetching stats:', error)
-    setLoading(false)
-  }
-}
-
-  const fetchRecentOrders = async () => {
+  const fetchStats = async () => {
     try {
-      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(5))
-      const snapshot = await getDocs(q)
-      const orders = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRecentOrders(orders)
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-    }
-  }
+      // Fetch orders
+      const ordersSnapshot = await getDocs(collection(db, 'orders'))
+      const orders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth)
-      window.location.href = '/admin'
+      // Fetch products
+      const productsSnapshot = await getDocs(collection(db, 'products'))
+
+      // Calculate real revenue (only confirmed/delivered + paid)
+      const realRevenue = orders
+        .filter(order => 
+          (order.orderStatus === 'Confirmed' || order.orderStatus === 'Delivered') &&
+          order.paymentStatus === 'Paid'
+        )
+        .reduce((sum, order) => sum + order.totalAmount, 0)
+
+      // Calculate pending revenue (confirmed but not yet paid)
+      const pendingRevenue = orders
+        .filter(order => 
+          (order.orderStatus === 'Confirmed' || order.orderStatus === 'Delivered') &&
+          order.paymentStatus === 'Pending'
+        )
+        .reduce((sum, order) => sum + order.totalAmount, 0)
+
+      setStats({
+        totalOrders: orders.length,
+        pendingOrders: orders.filter(o => o.orderStatus === 'Pending').length,
+        confirmedOrders: orders.filter(o => o.orderStatus === 'Confirmed').length,
+        deliveredOrders: orders.filter(o => o.orderStatus === 'Delivered').length,
+        realRevenue,
+        pendingRevenue,
+        totalProducts: productsSnapshot.size
+      })
+
+      setLoading(false)
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error('Error fetching stats:', error)
+      setLoading(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-[430px] mx-auto px-4 py-6">
+        
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
+          <p className="text-sm text-gray-600">Manage your store</p>
+        </div>
 
-          
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mr-3">
-                <img src="/logo.png" alt="Jix" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Jix Admin</h1>
-                <p className="text-xs text-gray-600">{user?.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
-            >
-              Logout
-            </button>
+        {/* Revenue Stats */}
+        <div className="grid grid-cols-1 gap-3 mb-6">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-5 text-white shadow-lg">
+            <p className="text-sm opacity-90 mb-1">Real Revenue (Paid)</p>
+            <p className="text-3xl font-bold">₦{stats.realRevenue.toLocaleString()}</p>
+            <p className="text-xs opacity-75 mt-2">From confirmed & delivered orders</p>
+          </div>
+
+          <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl p-5 text-white shadow-lg">
+            <p className="text-sm opacity-90 mb-1">Pending Revenue</p>
+            <p className="text-3xl font-bold">₦{stats.pendingRevenue.toLocaleString()}</p>
+            <p className="text-xs opacity-75 mt-2">Awaiting payment on delivery</p>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  ₦{stats.revenue.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
+        {/* Order Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="text-xs text-gray-600 mb-1">Total Orders</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalOrders}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="text-xs text-gray-600 mb-1">Products</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalProducts}</p>
+          </div>
+
+          <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+            <p className="text-xs text-yellow-700 mb-1">Pending</p>
+            <p className="text-2xl font-bold text-yellow-800">{stats.pendingOrders}</p>
+          </div>
+
+          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+            <p className="text-xs text-blue-700 mb-1">Confirmed</p>
+            <p className="text-2xl font-bold text-blue-800">{stats.confirmedOrders}</p>
+          </div>
+
+          <div className="bg-green-50 rounded-xl p-4 border border-green-200 col-span-2">
+            <p className="text-xs text-green-700 mb-1">Delivered</p>
+            <p className="text-2xl font-bold text-green-800">{stats.deliveredOrders}</p>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="space-y-3">
+          <a 
+            href="/admin/orders"
+            className="bg-blue-50 rounded-xl p-4 flex items-center justify-between hover:bg-blue-100 transition"
+          >
+            <div className="flex items-center">
+              <div className="bg-blue-600 rounded-lg p-2 mr-3">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Pending Orders</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.pendingOrders}</p>
+                <p className="text-sm font-bold text-gray-900">Orders</p>
+                <p className="text-xs text-gray-600">View and manage orders</p>
               </div>
-              <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </div>
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <a 
+            href="/admin/products"
+            className="bg-purple-50 rounded-xl p-4 flex items-center justify-between hover:bg-purple-100 transition"
+          >
+            <div className="flex items-center">
+              <div className="bg-purple-600 rounded-lg p-2 mr-3">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">Products</p>
+                <p className="text-xs text-gray-600">Manage inventory</p>
+              </div>
             </div>
-          </div>
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Low Stock Items</p>
-              <p className="text-3xl font-bold text-orange-600">{stats.lowStockCount}</p>
+          <a 
+            href="/admin/referrals"
+            className="bg-orange-50 rounded-xl p-4 flex items-center justify-between hover:bg-orange-100 transition"
+          >
+            <div className="flex items-center">
+              <div className="bg-orange-600 rounded-lg p-2 mr-3">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">Referrals</p>
+                <p className="text-xs text-gray-600">Track commissions</p>
+              </div>
             </div>
-            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-          </div>
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
         </div>
 
-        </div>
-
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-  
-    <a href="/admin/products"
-    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition group"
-  >
-    <div className="flex flex-col items-center text-center">
-      <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-100 transition mb-4">
-        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
       </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-1">Manage Products</h3>
-      <p className="text-sm text-gray-600">Add, edit, or delete products</p>
     </div>
-  </a>
-
- 
-    <a href="/admin/orders"
-    className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition group"
-  >
-    <div className="flex flex-col items-center text-center">
-      <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center group-hover:bg-green-100 transition mb-4">
-        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-1">View Orders</h3>
-      <p className="text-sm text-gray-600">Manage customer orders</p>
-    </div>
-  </a>
-
-  
-    <a 
-  href="/admin/referrals"
-  className="bg-purple-50 rounded-xl p-4 flex items-center justify-between hover:bg-purple-100 transition"
->
-  <div className="flex items-center">
-    <div className="bg-purple-600 rounded-lg p-2 mr-3">
-      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    </div>
-    <div>
-      <p className="text-sm font-bold text-gray-900">Referrals</p>
-      <p className="text-xs text-gray-600">Track commissions</p>
-    </div>
-  </div>
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-</a>
-
-<a 
-  href="/admin/emergency-orders"
-  className="bg-purple-50 rounded-xl p-4 flex items-center justify-between hover:bg-purple-100 transition"
->
-  <div className="flex items-center">
-    <div className="bg-purple-600 rounded-lg p-2 mr-3">
-      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    </div>
-    <div>
-      <p className="text-sm font-bold text-gray-900">Emergency Backup Orders</p>
-      <p className="text-xs text-gray-600">Track failed orders</p>
-    </div>
-  </div>
-  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-</a>
-
-</div>        
-</div>
-
-
-
-
-
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Recent Orders</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentOrders.map(order => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{order.orderId}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{order.customer.name}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">₦{order.totalAmount.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        order.orderStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                        order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {order.orderStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {order.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
   )
 }

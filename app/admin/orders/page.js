@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
+// Format phone number for WhatsApp
 const formatWhatsAppNumber = (phone) => {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '')
   
@@ -25,13 +26,19 @@ const formatWhatsAppNumber = (phone) => {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchPhone, setSearchPhone] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [filteredOrders, setFilteredOrders] = useState([])
-  const [updatingOrder, setUpdatingOrder] = useState(null) // Track which order is being updated
+  const [updatingOrder, setUpdatingOrder] = useState(null)
+  const [filterStatus, setFilterStatus] = useState('all') // all, pending, confirmed, delivered
 
   useEffect(() => {
     fetchAllOrders()
   }, [])
+
+  // Filter orders whenever search term or status filter changes
+  useEffect(() => {
+    filterOrders()
+  }, [searchTerm, filterStatus, orders])
 
   const fetchAllOrders = async () => {
     setLoading(true)
@@ -54,26 +61,35 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const handleSearch = () => {
-    if (!searchPhone.trim()) {
-      setFilteredOrders(orders)
-      return
+  const filterOrders = () => {
+    let filtered = orders
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(order => 
+        order.orderStatus.toLowerCase() === filterStatus.toLowerCase()
+      )
     }
 
-    const filtered = orders.filter(order => 
-      order.customer.phone.includes(searchPhone)
-    )
-    
-    setFilteredOrders(filtered)
-    
-    if (filtered.length === 0) {
-      alert(`No orders found for: ${searchPhone}`)
+    // Filter by search term (Order ID, Phone, Name)
+    if (searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase().trim()
+      filtered = filtered.filter(order => 
+        order.orderId.toLowerCase().includes(term) ||
+        order.customer.phone.includes(term) ||
+        order.customer.name.toLowerCase().includes(term)
+      )
     }
+
+    setFilteredOrders(filtered)
+  }
+
+  const handleSearch = (value) => {
+    setSearchTerm(value)
   }
 
   const clearSearch = () => {
-    setSearchPhone('')
-    setFilteredOrders(orders)
+    setSearchTerm('')
   }
 
   // Mark order as delivered
@@ -91,7 +107,6 @@ export default function AdminOrdersPage() {
         deliveredAt: new Date()
       })
 
-      // Update local state
       const updatedOrders = orders.map(order => 
         order.id === orderDocId 
           ? { ...order, orderStatus: 'Delivered', deliveredAt: new Date() }
@@ -99,10 +114,6 @@ export default function AdminOrdersPage() {
       )
       
       setOrders(updatedOrders)
-      setFilteredOrders(updatedOrders.filter(order => 
-        !searchPhone || order.customer.phone.includes(searchPhone)
-      ))
-
       alert(`Order ${orderId} marked as delivered! ✅`)
       setUpdatingOrder(null)
     } catch (error) {
@@ -127,7 +138,6 @@ export default function AdminOrdersPage() {
         confirmedAt: new Date()
       })
 
-      // Update local state
       const updatedOrders = orders.map(order => 
         order.id === orderDocId 
           ? { ...order, orderStatus: 'Confirmed', confirmedAt: new Date() }
@@ -135,10 +145,6 @@ export default function AdminOrdersPage() {
       )
       
       setOrders(updatedOrders)
-      setFilteredOrders(updatedOrders.filter(order => 
-        !searchPhone || order.customer.phone.includes(searchPhone)
-      ))
-
       alert(`Order ${orderId} confirmed! ✅`)
       setUpdatingOrder(null)
     } catch (error) {
@@ -146,6 +152,26 @@ export default function AdminOrdersPage() {
       alert('Failed to update order. Please try again.')
       setUpdatingOrder(null)
     }
+  }
+
+  // Calculate REAL revenue (only confirmed/delivered + paid orders)
+  const calculateRealRevenue = () => {
+    return orders
+      .filter(order => 
+        (order.orderStatus === 'Confirmed' || order.orderStatus === 'Delivered') &&
+        order.paymentStatus === 'Paid'
+      )
+      .reduce((sum, order) => sum + order.totalAmount, 0)
+  }
+
+  // Calculate pending revenue (confirmed but not yet paid)
+  const calculatePendingRevenue = () => {
+    return orders
+      .filter(order => 
+        (order.orderStatus === 'Confirmed' || order.orderStatus === 'Delivered') &&
+        order.paymentStatus === 'Pending'
+      )
+      .reduce((sum, order) => sum + order.totalAmount, 0)
   }
 
   if (loading) {
@@ -158,6 +184,9 @@ export default function AdminOrdersPage() {
       </div>
     )
   }
+
+  const realRevenue = calculateRealRevenue()
+  const pendingRevenue = calculatePendingRevenue()
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -177,44 +206,104 @@ export default function AdminOrdersPage() {
           </span>
         </div>
 
+        {/* Revenue Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+            <p className="text-xs text-green-700 font-medium mb-1">Real Revenue</p>
+            <p className="text-xl font-bold text-green-800">₦{realRevenue.toLocaleString()}</p>
+            <p className="text-xs text-green-600 mt-1">Confirmed + Paid</p>
+          </div>
+          <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
+            <p className="text-xs text-yellow-700 font-medium mb-1">Pending</p>
+            <p className="text-xl font-bold text-yellow-800">₦{pendingRevenue.toLocaleString()}</p>
+            <p className="text-xs text-yellow-600 mt-1">Awaiting Payment</p>
+          </div>
+        </div>
+
+        {/* Search & Filter */}
         <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <p className="text-sm text-gray-600 mb-3 font-medium">Filter by Phone Number</p>
-          <div className="flex gap-2">
+          <p className="text-sm text-gray-600 mb-3 font-medium">Search Orders</p>
+          
+          {/* Search Input */}
+          <div className="flex gap-2 mb-3">
             <input
-              type="tel"
-              placeholder="Search by phone"
-              value={searchPhone}
-              onChange={(e) => setSearchPhone(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              type="text"
+              placeholder="Order ID, Phone, or Name"
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
               className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {searchPhone ? (
+            {searchTerm ? (
               <button
                 onClick={clearSearch}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-300 text-sm"
               >
                 Clear
               </button>
-            ) : (
-              <button
-                onClick={handleSearch}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 text-sm"
-              >
-                Search
-              </button>
-            )}
+            ) : null}
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="flex gap-2 overflow-x-auto">
+            <button
+              onClick={() => setFilterStatus('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                filterStatus === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              All ({orders.length})
+            </button>
+            <button
+              onClick={() => setFilterStatus('pending')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                filterStatus === 'pending' 
+                  ? 'bg-yellow-600 text-white' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              Pending ({orders.filter(o => o.orderStatus === 'Pending').length})
+            </button>
+            <button
+              onClick={() => setFilterStatus('confirmed')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                filterStatus === 'confirmed' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              Confirmed ({orders.filter(o => o.orderStatus === 'Confirmed').length})
+            </button>
+            <button
+              onClick={() => setFilterStatus('delivered')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                filterStatus === 'delivered' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              Delivered ({orders.filter(o => o.orderStatus === 'Delivered').length})
+            </button>
           </div>
         </div>
 
+        {/* Orders List */}
         {filteredOrders.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl">
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             <p className="text-gray-500 mb-2">No orders found</p>
-            {searchPhone && (
-              <button onClick={clearSearch} className="text-blue-600 font-medium text-sm">
-                Show all orders
+            {(searchTerm || filterStatus !== 'all') && (
+              <button 
+                onClick={() => {
+                  clearSearch()
+                  setFilterStatus('all')
+                }} 
+                className="text-blue-600 font-medium text-sm"
+              >
+                Clear filters
               </button>
             )}
           </div>
@@ -222,9 +311,10 @@ export default function AdminOrdersPage() {
           <div className="space-y-3">
             {filteredOrders.map(order => (
               <div key={order.id} className="bg-white rounded-xl p-4 shadow-sm">
+                {/* Order Header */}
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="font-bold text-gray-900">{order.orderId}</p>
+                    <p className="font-bold text-gray-900 text-sm">{order.orderId}</p>
                     <p className="text-xs text-gray-500">
                       {order.createdAt?.toDate?.()?.toLocaleDateString('en-NG', {
                         day: 'numeric',
@@ -235,22 +325,28 @@ export default function AdminOrdersPage() {
                       }) || 'N/A'}
                     </p>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
-                    order.orderStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                    order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {order.orderStatus}
-                  </span>
+                  <div className="text-right">
+                    <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                      order.orderStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                      order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {order.orderStatus}
+                    </span>
+                  
+                  </div>
                 </div>
                 
+                {/* Customer Info */}
                 <div className="bg-gray-50 rounded-lg p-3 mb-3 text-xs">
                   <p className="text-gray-600"><strong>Name:</strong> {order.customer.name}</p>
                   <p className="text-gray-600"><strong>Phone:</strong> {order.customer.phone}</p>
+                  <p className="text-gray-600"><strong>Hall:</strong> {order.customer.hall}</p>
                   <p className="text-gray-600"><strong>Address:</strong> {order.customer.address}</p>
                   <p className="text-gray-600"><strong>Payment:</strong> {order.paymentMethod}</p>
                 </div>
                 
+                {/* Items */}
                 <div className="space-y-2 mb-3">
                   {order.items.slice(0, 2).map((item, i) => (
                     <div key={i} className="flex items-center text-sm">
@@ -264,14 +360,15 @@ export default function AdminOrdersPage() {
                   )}
                 </div>
                 
+                {/* Total */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                   <span className="text-sm text-gray-600">Total Amount</span>
                   <span className="text-lg font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</span>
                 </div>
 
-                {/* Actions - Different buttons based on status */}
+                {/* Actions */}
                 <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                  {/* WhatsApp Button - Always visible */}
+                  {/* WhatsApp Button */}
                   <a 
                     href={`https://wa.me/${formatWhatsAppNumber(order.customer.phone)}?text=Hi ${order.customer.name}, your order ${order.orderId} has been ${order.orderStatus === 'Delivered' ? 'delivered' : 'confirmed and will be delivered soon'}!`}
                     target="_blank"
@@ -327,4 +424,3 @@ export default function AdminOrdersPage() {
     </div>
   )
 }
-``
