@@ -197,7 +197,7 @@ export default function AdminOrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </a>
-            <h1 className="text-2xl font-bold text-gray-900">All Order</h1>
+            <h1 className="text-2xl font-bold text-gray-900">All Orders.</h1>
           </div>
           <span className="bg-blue-600 text-white text-sm font-bold px-3 py-1 rounded-full">
             {filteredOrders.length}
