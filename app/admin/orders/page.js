@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
-// Format phone number for WhatsApp
 const formatWhatsAppNumber = (phone) => {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '')
   
@@ -35,7 +34,6 @@ export default function AdminOrdersPage() {
     fetchAllOrders()
   }, [])
 
-  // Filter orders whenever search term or status filter changes
   useEffect(() => {
     filterOrders()
   }, [searchTerm, filterStatus, orders])
@@ -199,7 +197,7 @@ export default function AdminOrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </a>
-            <h1 className="text-2xl font-bold text-gray-900">All Orders</h1>
+            <h1 className="text-2xl font-bold text-gray-900">All Order</h1>
           </div>
           <span className="bg-blue-600 text-white text-sm font-bold px-3 py-1 rounded-full">
             {filteredOrders.length}
