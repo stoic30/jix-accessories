@@ -21,7 +21,6 @@ function shuffleArray(array) {
     return x - Math.floor(x)
   }
   
-  // Fisher-Yates shuffle with seed
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(seededRandom(seed + i) * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
@@ -151,7 +150,8 @@ async function getCategoryCounts(products) {
   return {
     phones: products.filter(p => p.category === 'phones').length,
     laptops: products.filter(p => p.category === 'laptops').length,
-    accessories: products.filter(p => p.category === 'accessories').length
+    accessories: products.filter(p => p.category === 'accessories').length,
+    ukUsed: products.filter(p => p.category === 'uk-used').length
   }
 }
 
@@ -212,14 +212,12 @@ export default async function Home() {
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="max-w-[430px] mx-auto">
         
-       {/* Hot Deals Bar - ANIMATED */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 overflow-hidden relative">
           <div className="animate-marquee whitespace-nowrap">
             <span className="text-sm font-semibold">⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets ⚡ Hot Deals & New Arrivals - Limited time offers on premium gadgets</span>
           </div>
         </div>
 
-        {/* Trust Badges */}
         <div className="bg-white px-6 py-2 grid grid-cols-3 gap-3 text-center">
           <div className="flex flex-col items-center">
             <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-2">
@@ -250,28 +248,37 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="bg-white px-6 py-5 mt-2">
-          <div className="flex justify-between max-w-xs mx-auto">
-            <a href="/category/phones" className="flex-shrink-0 text-center">
-              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-                <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-full object-cover"/>
-              </div>
-              <p className="text-sm font-semibold text-gray-800">Phones</p>
-            </a>
-            <a href="/category/laptops" className="flex-shrink-0 text-center">
-              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-                <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" alt="Laptops" className="w-full h-full object-cover"/>
-              </div>
-              <p className="text-sm font-semibold text-gray-800">Laptops</p>
-            </a>
-            <a href="/category/accessories" className="flex-shrink-0 text-center">
-              <div className="w-25 h-25 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-                <img src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" alt="Accessories" className="w-full h-full object-cover"/>
-              </div>
-              <p className="text-sm font-semibold text-gray-800">Accessories</p>
-            </a>
-          </div>
-        </div>
+       <div className="bg-white px-6 py-5 mt-2">
+  <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+    <a href="/category/phones" className="text-center">
+      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-full object-cover"/>
+      </div>
+      <p className="text-sm font-semibold text-gray-800">Phones</p>
+    </a>
+    
+    <a href="/category/laptops" className="text-center">
+      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" alt="Laptops" className="w-full h-full object-cover"/>
+      </div>
+      <p className="text-sm font-semibold text-gray-800">Laptops</p>
+    </a>
+    
+    <a href="/category/accessories" className="text-center">
+      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        <img src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" alt="Accessories" className="w-full h-full object-cover"/>
+      </div>
+      <p className="text-sm font-semibold text-gray-800">Accessories</p>
+    </a>
+    
+    <a href="/category/uk-used" className="text-center">
+      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition bg-gradient-to-br from-orange-500 to-orange-600">
+        <img src="https://images.unsplash.com/photo-1593642532400-2682810df593?w=300&q=80" alt="UK Used" className="w-full h-full object-cover opacity-90"/>
+      </div>
+      <p className="text-sm font-semibold text-gray-800">UK Used</p>
+    </a>
+  </div>
+</div>
 
         <div className="px-4 py-2 mt-2 bg-white">
           <div className="flex justify-between items-center mb-4">

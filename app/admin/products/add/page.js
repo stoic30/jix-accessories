@@ -171,54 +171,62 @@ export default function AddProduct() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="phones">Phones</option>
-                  <option value="laptops">Laptops</option>
-                  <option value="accessories">Accessories</option>
-                </select>
+               <select
+  name="category"
+  value={formData.category}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="phones">Phones</option>
+  <option value="laptops">Laptops</option>
+  <option value="accessories">Accessories</option>
+  <option value="uk-used">UK Used</option>
+</select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Subcategory <span className="text-red-500">*</span>
                 </label>
                 <select
-                  name="subcategory"
-                  value={formData.subcategory}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {formData.category === 'phones' && (
-                    <>
-                      <option value="samsung">Samsung</option>
-                      <option value="iphone">iPhone</option>
-                      <option value="tablets">Tablets</option>
-                    </>
-                  )}
-                  {formData.category === 'laptops' && (
-                    <>
-                      <option value="hp">HP</option>
-                      <option value="dell">Dell</option>
-                      <option value="macbook">MacBook</option>
-                    </>
-                  )}
-                  {formData.category === 'accessories' && (
-                    <>
-                      <option value="powerbank">Power Bank</option>
-                      <option value="headset">Headset</option>
-                      <option value="earpods">EarPods</option>
-                      <option value="chargers">Chargers</option>
-                      <option value="speakers">Speakers</option>
-                      <option value="smartwatch">Smart Watch</option>
-                    </>
-                  )}
-                </select>
+  name="subcategory"
+  value={formData.subcategory}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  {formData.category === 'phones' && (
+    <>
+      <option value="samsung">Samsung</option>
+      <option value="iphone">iPhone</option>
+      <option value="tablets">Tablets</option>
+    </>
+  )}
+  {formData.category === 'laptops' && (
+    <>
+      <option value="hp">HP</option>
+      <option value="dell">Dell</option>
+      <option value="macbook">MacBook</option>
+    </>
+  )}
+  {formData.category === 'accessories' && (
+    <>
+      <option value="powerbank">Power Bank</option>
+      <option value="headset">Headset</option>
+      <option value="earpods">EarPods</option>
+      <option value="chargers">Chargers</option>
+      <option value="speakers">Speakers</option>
+      <option value="smartwatch">Smart Watch</option>
+    </>
+  )}
+  {formData.category === 'uk-used' && (
+    <>
+      <option value="uk-phones">UK Phones</option>
+      <option value="uk-laptops">UK Laptops</option>
+      <option value="uk-accessories">UK Accessories</option>
+    </>
+  )}
+</select>
               </div>
             </div>
 

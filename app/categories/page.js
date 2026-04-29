@@ -19,11 +19,12 @@ async function getCategoryCounts() {
     return {
       phones: products.filter(p => p.category === 'phones').length,
       laptops: products.filter(p => p.category === 'laptops').length,
-      accessories: products.filter(p => p.category === 'accessories').length
+      accessories: products.filter(p => p.category === 'accessories').length,
+      ukUsed: products.filter(p => p.category === 'uk-used').length
     }
   } catch (error) {
     console.error('Error getting counts:', error)
-    return { phones: 0, laptops: 0, accessories: 0 }
+    return { phones: 0, laptops: 0, accessories: 0, ukUsed: 0 }
   }
 }
 
@@ -52,6 +53,13 @@ export default async function CategoriesPage() {
       color: 'from-pink-500 to-pink-600', 
       count: counts.accessories 
     },
+    { 
+      name: 'UK Used', 
+      slug: 'uk-used', 
+      image: 'https://images.unsplash.com/photo-1585155770447-2f4e5a8c6c1d?w=600&q=80', // UK Used Laptop
+      color: 'from-orange-500 to-orange-600', 
+      count: counts.ukUsed 
+    }
   ]
 
   return (
