@@ -15,7 +15,6 @@ export default function ProductPageClient({ product }) {
     alert('Added to cart!')
   }
 
-  // Minimum swipe distance (in px)
   const minSwipeDistance = 50
 
   const onTouchStart = (e) => {
@@ -50,7 +49,6 @@ export default function ProductPageClient({ product }) {
     setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length)
   }
 
-  // Format price
   const formattedPrice = `₦${product.price.toLocaleString()}`
 
 const formattedOldPrice = product.oldPrice 
@@ -61,7 +59,6 @@ const formattedOldPrice = product.oldPrice
     <div className="bg-gray-50 min-h-screen pb-28">
       <div className="max-w-[430px] mx-auto bg-white">
         
-        {/* Header */}
         <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <a href="/" className="p-1">
@@ -86,7 +83,6 @@ const formattedOldPrice = product.oldPrice
           </div>
         </div>
 
-        {/* Product Images - SWIPEABLE */}
         <div 
           className="bg-gray-50 p-6 relative select-none"
           onTouchStart={onTouchStart}
@@ -109,7 +105,6 @@ const formattedOldPrice = product.oldPrice
               </span>
             )}
 
-            {/* Navigation Arrows - Desktop */}
             {product.images.length > 1 && (
               <>
                 <button 
@@ -132,7 +127,6 @@ const formattedOldPrice = product.oldPrice
             )}
           </div>
           
-          {/* Image indicators */}
           {product.images.length > 1 && (
             <div className="flex justify-center mt-4 space-x-2">
               {product.images.map((_, index) => (
@@ -149,20 +143,16 @@ const formattedOldPrice = product.oldPrice
             </div>
           )}
           
-          {/* Swipe hint */}
           {product.images.length > 1 && (
             <p className="text-center text-xs text-gray-500 mt-2">← Swipe to see more images →</p>
           )}
         </div>
 
-        {/* Product Info */}
         <div className="px-4 py-4">
-          {/* Product Name */}
           <h1 className="text-xl font-bold text-gray-900 mb-2">
             {product.name}
           </h1>
 
-          {/* Price */}
           <div className="flex items-center space-x-3 mb-4">
             <span className="text-3xl font-bold text-gray-900">
               {formattedPrice}
@@ -182,7 +172,6 @@ const formattedOldPrice = product.oldPrice
   </div>
 )}
 
-          {/* Stock Status */}
 <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-gray-200">
   <div className="flex items-center">
     <div className={`w-2 h-2 rounded-full mr-2 ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -201,7 +190,6 @@ const formattedOldPrice = product.oldPrice
   )}
 </div>
 
-          {/* Description */}
           <div className="mb-4">
             <h2 className="text-base font-bold text-gray-900 mb-2">Description</h2>
             <p className="text-sm text-gray-600 leading-relaxed">
@@ -209,7 +197,6 @@ const formattedOldPrice = product.oldPrice
             </p>
           </div>
 
-          {/* Specifications */}
           {product.specs && Object.keys(product.specs).length > 0 && (
             <div className="mb-4">
               <h2 className="text-base font-bold text-gray-900 mb-3">Specifications</h2>
@@ -224,7 +211,6 @@ const formattedOldPrice = product.oldPrice
             </div>
           )}
 
-          {/* Delivery & Warranty */}
           <div className="bg-blue-50 rounded-xl p-4 mb-4">
             <div className="flex items-start mb-3">
               <svg className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -249,10 +235,8 @@ const formattedOldPrice = product.oldPrice
 
         </div>
 
-{/* Related Products Section - ADD BEFORE STICKY BUTTON */}
 <RelatedProducts currentProduct={product} />
 
-        {/* Sticky Add to Cart Button */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg" style={{ zIndex: 100 }}>
           <div className="max-w-[430px] mx-auto">
             <button 

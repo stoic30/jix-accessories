@@ -251,31 +251,31 @@ export default async function Home() {
        <div className="bg-white px-6 py-5 mt-2">
   <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
     <a href="/category/phones" className="text-center">
-      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-full object-cover"/>
+      <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-50 object-cover"/>
       </div>
       <p className="text-sm font-semibold text-gray-800">Phones</p>
     </a>
     
     <a href="/category/laptops" className="text-center">
-      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" alt="Laptops" className="w-full h-full object-cover"/>
+      <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+        <img src="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300&q=80" alt="Laptops" className="w-full h-38 object-cover"/>
       </div>
       <p className="text-sm font-semibold text-gray-800">Laptops</p>
     </a>
     
     <a href="/category/accessories" className="text-center">
-      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
+      <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
         <img src="https://images.unsplash.com/photo-1700087151960-178ea946e608?w=300&q=80" alt="Accessories" className="w-full h-full object-cover"/>
       </div>
       <p className="text-sm font-semibold text-gray-800">Accessories</p>
     </a>
     
     <a href="/category/uk-used" className="text-center">
-      <div className="w-full aspect-square rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition bg-gradient-to-br from-orange-500 to-orange-600">
-        <img src="https://images.unsplash.com/photo-1593642532400-2682810df593?w=300&q=80" alt="UK Used" className="w-full h-full object-cover opacity-90"/>
+      <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition bg-gradient-to-br from-orange-500 to-orange-600">
+        <img src="https://i.imgur.com/huvYqNf.png" alt="UK Direct Phones & Laptops" className="w-full h-full object-cover opacity-90"/>
       </div>
-      <p className="text-sm font-semibold text-gray-800">UK Used</p>
+      <p className="text-sm font-bold text-gray-800">UK Direct Phones & Laptops🇬🇧</p>
     </a>
   </div>
 </div>
