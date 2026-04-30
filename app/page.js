@@ -252,7 +252,7 @@ export default async function Home() {
   <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
     <a href="/category/phones" className="text-center">
       <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition">
-        <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-50 object-cover"/>
+        <img src="https://images.unsplash.com/photo-1726587912121-ea21fcc57ff8?w=300&q=80" alt="Phones" className="w-full h-40 object-cover"/>
       </div>
       <p className="text-sm font-semibold text-gray-800">Phones</p>
     </a>

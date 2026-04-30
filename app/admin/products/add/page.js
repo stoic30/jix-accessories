@@ -220,11 +220,14 @@ export default function AddProduct() {
     </>
   )}
   {formData.category === 'uk-used' && (
-    <>
-      <option value="uk-phones">UK Phones</option>
-      <option value="uk-laptops">UK Laptops</option>
-      <option value="uk-accessories">UK Accessories</option>
-    </>
+  <>
+    {/* UK Phones */}
+    <option value="uk-iphone">🇬🇧 UK iPhone</option>
+    <option value="uk-samsung">🇬🇧 UK Samsung</option>    
+    {/* UK Laptops */}
+    <option value="uk-laptop">🇬🇧 UK LAPTOP</option>
+    
+  </>
   )}
 </select>
               </div>
