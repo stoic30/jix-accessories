@@ -72,6 +72,10 @@ sale: productData.sale?.toLowerCase() === 'true' || productData.sale === '1' || 
   createdAt: new Date()
 }
 
+          // Normalize category and subcategory values
+          product.category = product.category.replace(/\s+/g, '').toLowerCase()
+          product.subcategory = product.subcategory.replace(/\s+/g, '').toLowerCase()
+
           // Validate category and subcategory
           if (!['ukused', 'uk-iphone', 'uk-samsung', 'uk-laptop'].includes(product.category)) {
             throw new Error(`Invalid category: ${product.category}`)
