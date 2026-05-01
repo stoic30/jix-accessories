@@ -72,6 +72,14 @@ sale: productData.sale?.toLowerCase() === 'true' || productData.sale === '1' || 
   createdAt: new Date()
 }
 
+          // Validate category and subcategory
+          if (!['ukused', 'uk-iphone', 'uk-samsung', 'uk-laptop'].includes(product.category)) {
+            throw new Error(`Invalid category: ${product.category}`)
+          }
+          if (product.category === 'ukused' && !['uk-iphone', 'uk-samsung', 'uk-laptop'].includes(product.subcategory)) {
+            throw new Error(`Invalid subcategory for ukused: ${product.subcategory}`)
+          }
+
           await addDoc(collection(db, 'products'), product)
           successCount++
         } catch (error) {

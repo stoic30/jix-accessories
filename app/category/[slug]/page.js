@@ -64,10 +64,21 @@ async function getSubcategories(category) {
   try {
     // HARDCODED subcategories for UK Used (will show even without products)
     if (category === 'ukused') {
+      const q = query(collection(db, 'products'), where('category', '==', 'ukused'))
+      const snapshot = await getDocs(q)
+      const counts = { 'uk-iphone': 0, 'uk-samsung': 0, 'uk-laptop': 0 }
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data()
+        if (counts[data.subcategory] !== undefined) {
+          counts[data.subcategory]++
+        }
+      })
+
       return [
-        { slug: 'uk-iphone', name: '🇬🇧 UK iPhones', count: 0 },
-        { slug: 'uk-samsung', name: '🇬🇧 UK Samsung', count: 0 },
-        { slug: 'uk-laptop', name: '🇬🇧 UK Laptops', count: 0 },
+        { slug: 'uk-iphone', name: '🇬🇧 UK iPhones', count: counts['uk-iphone'] },
+        { slug: 'uk-samsung', name: '🇬🇧 UK Samsung', count: counts['uk-samsung'] },
+        { slug: 'uk-laptop', name: '🇬🇧 UK Laptops', count: counts['uk-laptop'] },
       ]
     }
 
