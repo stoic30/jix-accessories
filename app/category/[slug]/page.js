@@ -28,8 +28,11 @@ const DEFAULT_SUBCATEGORY_IMAGES = {
   Speakers: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&q=80',
   smartwatch: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&q=80',
   lighting: 'https://images.unsplash.com/photo-1621177555630-b861919c864f?w=400&q=80',
-  ukiphones: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80',
-  uklaptops: 'https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?w=400&q=80',
+  
+  // UK USED IMAGES
+  'uk-iphone': 'https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80',
+  'uk-samsung': 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80',
+  'uk-laptop': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
 }
 
 async function getSubcategoryImages(category) {
@@ -59,6 +62,16 @@ async function getSubcategoryImages(category) {
 
 async function getSubcategories(category) {
   try {
+    // HARDCODED subcategories for UK Used (will show even without products)
+    if (category === 'ukused') {
+      return [
+        { slug: 'uk-iphone', name: '🇬🇧 UK iPhones', count: 0 },
+        { slug: 'uk-samsung', name: '🇬🇧 UK Samsung', count: 0 },
+        { slug: 'uk-laptop', name: '🇬🇧 UK Laptops', count: 0 },
+      ]
+    }
+
+    // For other categories, get from products (existing logic)
     const q = query(collection(db, 'products'), where('category', '==', category))
     const snapshot = await getDocs(q)
     const products = snapshot.docs.map(doc => {
@@ -103,7 +116,6 @@ export default async function CategoryPage({ params }) {
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-[430px] mx-auto px-4 py-6">
         
-        {/* Header */}
         <div className="flex items-center mb-6">
           <a href="/categories" className="mr-3">
             <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +125,6 @@ export default async function CategoryPage({ params }) {
           <h1 className="text-2xl font-bold text-gray-900">{categoryName}</h1>
         </div>
         
-        {/* Subcategories */}
         <div className="grid grid-cols-2 gap-3">
           {subcategories.map(sub => {
             // Priority: Firebase → Defaults → Placeholder

@@ -181,7 +181,7 @@ export default function AddProduct() {
   <option value="phones">Phones</option>
   <option value="laptops">Laptops</option>
   <option value="accessories">Accessories</option>
-  <option value="uk-used">UK Used</option>
+  <option value="ukused">UK Used</option>
 </select>
               </div>
               <div>
@@ -219,7 +219,7 @@ export default function AddProduct() {
       <option value="smartwatch">Smart Watch</option>
     </>
   )}
-  {formData.category === 'uk-used' && (
+  {formData.category === 'ukused' && (
   <>
     {/* UK Phones */}
     <option value="uk-iphone">🇬🇧 UK iPhone</option>

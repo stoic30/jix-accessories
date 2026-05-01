@@ -151,7 +151,7 @@ async function getCategoryCounts(products) {
     phones: products.filter(p => p.category === 'phones').length,
     laptops: products.filter(p => p.category === 'laptops').length,
     accessories: products.filter(p => p.category === 'accessories').length,
-    ukUsed: products.filter(p => p.category === 'uk-used').length
+    ukUsed: products.filter(p => p.category === 'ukused').length
   }
 }
 
@@ -271,7 +271,7 @@ export default async function Home() {
       <p className="text-sm font-semibold text-gray-800">Accessories</p>
     </a>
     
-    <a href="/category/uk-used" className="text-center">
+    <a href="/category/ukused" className="text-center">
       <div className="w-full h-28 rounded-2xl mb-2 overflow-hidden shadow-md transform hover:scale-105 transition bg-gradient-to-br from-orange-500 to-orange-600">
         <img src="https://i.imgur.com/huvYqNf.png" alt="UK Direct Phones & Laptops" className="w-full h-full object-cover opacity-90"/>
       </div>

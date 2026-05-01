@@ -20,7 +20,7 @@ async function getCategoryCounts() {
       phones: products.filter(p => p.category === 'phones').length,
       laptops: products.filter(p => p.category === 'laptops').length,
       accessories: products.filter(p => p.category === 'accessories').length,
-      ukUsed: products.filter(p => p.category === 'uk-used').length
+      ukUsed: products.filter(p => p.category === 'ukused').length
     }
   } catch (error) {
     console.error('Error getting counts:', error)
@@ -54,8 +54,8 @@ export default async function CategoriesPage() {
       count: counts.accessories 
     },
     { 
-      name: 'UK Used', 
-      slug: 'uk-used', 
+      name: 'UK Direct Phones & Laptops', 
+      slug: 'ukused', 
       image: 'https://images.unsplash.com/photo-1585155770447-2f4e5a8c6c1d?w=600&q=80', // UK Used Laptop
       color: 'from-orange-500 to-orange-600', 
       count: counts.ukUsed 
