@@ -234,97 +234,117 @@ export default function CheckoutPage() {
     setIsSubmitting(false)
   }
 
-  // Pay on delivery handler
-  const handlePayOnDelivery = async () => {
+// Pay on delivery handler
+const handlePayOnDelivery = async () => {
+  try {
+    setIsSubmitting(true)
+
+    // Validate referral if provided
+    let validatedReferralData = null
+    if (formData.referralCode && formData.referralCode.trim() !== '') {
+      const upperCode = formData.referralCode.toUpperCase().trim()
+      const referralRef = doc(db, 'referrals', upperCode)
+      const referralSnap = await getDoc(referralRef)
+      
+      if (referralSnap.exists() && referralSnap.data().isActive) {
+        validatedReferralData = referralSnap.data()
+      } else {
+        alert('Invalid referral code. Please remove it or enter a valid code.')
+        setIsSubmitting(false)
+        return
+      }
+    }
+
+    // Check stock availability
+    for (const item of cart) {
+      const productRef = doc(db, 'products', item.id)
+      const productSnap = await getDoc(productRef)
+      
+      if (!productSnap.exists()) {
+        throw new Error(`Product "${item.name}" not found`)
+      }
+      
+      const currentStock = productSnap.data().stock || 0
+      if (currentStock < item.quantity) {
+        throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock.`)
+      }
+    }
+
+    const orderTotal = getCartTotal()
+    const commission = validatedReferralData 
+      ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
+      : 0
+
+    const orderId = `JIX-${Date.now()}`
+    const orderData = {
+      orderId: orderId,
+      customer: {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        hall: formData.hall,
+        notes: formData.notes
+      },
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      })),
+      totalAmount: orderTotal,
+      paymentMethod: 'delivery',
+      paymentStatus: 'Pending',
+      paymentReference: null,
+      referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
+      referralDetails: validatedReferralData ? {
+        referrerName: validatedReferralData.referrerName,
+        commissionRate: validatedReferralData.commissionRate,
+        commissionAmount: commission
+      } : null,
+      orderStatus: 'Pending',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    console.log('💾 Saving Pay on Delivery order...')
+    
+    // CRITICAL FIX: Save order first (this works with current rules)
+    const orderRef = doc(collection(db, 'orders'))
+    await setDoc(orderRef, orderData)
+    
+    console.log('✅ ORDER SAVED!')
+
+    // Update stock (non-blocking - don't fail if this fails)
     try {
-      setIsSubmitting(true)
-
-      // Validate referral if provided
-      let validatedReferralData = null
-      if (formData.referralCode && formData.referralCode.trim() !== '') {
-        validatedReferralData = await validateReferralCode(formData.referralCode)
-        if (!validatedReferralData) {
-          alert('Invalid referral code. Please remove it or enter a valid code.')
-          setIsSubmitting(false)
-          return
-        }
-      }
-
-      // Check stock
       for (const item of cart) {
         const productRef = doc(db, 'products', item.id)
         const productSnap = await getDoc(productRef)
         
-        if (!productSnap.exists()) {
-          throw new Error(`Product "${item.name}" not found`)
+        if (productSnap.exists()) {
+          const currentStock = productSnap.data().stock || 0
+          const newStock = Math.max(0, currentStock - item.quantity)
+          
+          await setDoc(productRef, {
+            stock: newStock,
+            inStock: newStock > 0,
+            updatedAt: new Date()
+          }, { merge: true })
         }
-        
-        const currentStock = productSnap.data().stock || 0
-        if (currentStock < item.quantity) {
-          throw new Error(`Sorry! Only ${currentStock} units of "${item.name}" left in stock.`)
-        }
       }
+      console.log('✅ Stock updated')
+    } catch (stockError) {
+      console.error('⚠️ Stock update failed (non-critical):', stockError)
+      // Don't throw - order is already saved
+    }
 
-      const orderTotal = getCartTotal()
-      const commission = validatedReferralData 
-        ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
-        : 0
-
-      const orderId = `JIX-${Date.now()}`
-      const orderData = {
-        orderId: orderId,
-        customer: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          hall: formData.hall,
-          notes: formData.notes
-        },
-        items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        totalAmount: orderTotal,
-        paymentMethod: 'delivery',
-        paymentStatus: 'Pending',
-        paymentReference: null,
-        referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
-        referralDetails: validatedReferralData ? {
-          referrerName: validatedReferralData.referrerName,
-          commissionRate: validatedReferralData.commissionRate,
-          commissionAmount: commission
-        } : null,
-        orderStatus: 'Pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      // Save order
-      const orderRef = doc(collection(db, 'orders'))
-      await setDoc(orderRef, orderData)
-
-      // Update stock
-      for (const item of cart) {
-        const productRef = doc(db, 'products', item.id)
-        const productSnap = await getDoc(productRef)
-        const currentStock = productSnap.data().stock
-        const newStock = currentStock - item.quantity
-        
-        await setDoc(productRef, {
-          stock: newStock,
-          inStock: newStock > 0,
-          updatedAt: new Date()
-        }, { merge: true })
-      }
-
-      // Update referral
-      if (validatedReferralData) {
+    // Update referral (non-blocking - don't fail if this fails)
+    if (validatedReferralData) {
+      try {
         const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
         const refSnap = await getDoc(referralRef)
+        
         if (refSnap.exists()) {
           const refData = refSnap.data()
           await setDoc(referralRef, {
@@ -333,17 +353,33 @@ export default function CheckoutPage() {
             lastReferralAt: new Date()
           }, { merge: true })
         }
+        console.log('✅ Referral updated')
+      } catch (refError) {
+        console.error('⚠️ Referral update failed (non-critical):', refError)
+        // Don't throw - order is already saved
       }
-
-      clearCart()
-      window.location.href = `/order-success?orderId=${orderId}`
-      
-    } catch (error) {
-      console.error('Error:', error)
-      alert(error.message || 'Error placing order. Please try again.')
-      setIsSubmitting(false)
     }
+
+    // Success! Clear cart and redirect
+    clearCart()
+    console.log('✅ Redirecting to success page...')
+    window.location.href = `/order-success?orderId=${orderId}`
+    
+  } catch (error) {
+    console.error('🚨 Error placing order:', error)
+    
+    // Show user-friendly error
+    if (error.message.includes('stock')) {
+      alert(error.message)
+    } else if (error.message.includes('permissions')) {
+      alert('Technical error. Please try again or contact support.')
+    } else {
+      alert('Error placing order. Please try again.')
+    }
+    
+    setIsSubmitting(false)
   }
+}
 
   const handleSubmit = async (e) => {
     e.preventDefault()
