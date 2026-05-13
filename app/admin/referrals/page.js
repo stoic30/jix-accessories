@@ -14,28 +14,64 @@ export default function ReferralsPage() {
   }, [])
 
   const fetchData = async () => {
-    try {
-      const refQuery = query(collection(db, 'referrals'), orderBy('totalEarnings', 'desc'))
-      const refSnapshot = await getDocs(refQuery)
-      const refData = refSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+  try {
+    const refQuery = query(collection(db, 'referrals'), orderBy('totalEarnings', 'desc'))
+    const refSnapshot = await getDocs(refQuery)
 
-      const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
-      const ordersSnapshot = await getDocs(ordersQuery)
-      const ordersData = ordersSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(order => order.referralCode)
+    const rawReferrals = refSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
 
-      setReferrals(refData)
-      setOrders(ordersData)
-      setLoading(false)
-    } catch (error) {
-      console.error('Error:', error)
-      setLoading(false)
-    }
+    const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
+    const ordersSnapshot = await getDocs(ordersQuery)
+
+    const allReferralOrders = ordersSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(order => order.referralCode)
+
+    // Only count orders that are actually valid for commission
+    const validReferralOrders = allReferralOrders.filter(order =>
+      order.paymentStatus === 'paid' ||
+      order.paymentStatus === 'Paid' ||
+      order.orderStatus === 'confirmed' ||
+      order.orderStatus === 'Confirmed' ||
+      order.orderStatus === 'delivered' ||
+      order.orderStatus === 'Delivered'
+    )
+
+    const calculatedReferrals = rawReferrals.map(ref => {
+      const refOrders = validReferralOrders.filter(order =>
+        order.referralCode?.toLowerCase() === ref.code?.toLowerCase()
+      )
+
+      const totalReferrals = refOrders.length
+
+      const totalEarnings = refOrders.reduce((sum, order) => {
+        const commission =
+          order.referralDetails?.commissionAmount ||
+          ((order.totalAmount || 0) * ((ref.commissionRate || 5) / 100))
+
+        return sum + commission
+      }, 0)
+
+      return {
+        ...ref,
+        totalReferrals,
+        totalEarnings
+      }
+    })
+
+    calculatedReferrals.sort((a, b) => (b.totalEarnings || 0) - (a.totalEarnings || 0))
+
+    setReferrals(calculatedReferrals)
+    setOrders(validReferralOrders)
+    setLoading(false)
+  } catch (error) {
+    console.error('Error:', error)
+    setLoading(false)
   }
+}
 
   if (loading) {
     return (

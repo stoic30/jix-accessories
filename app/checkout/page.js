@@ -1,9 +1,10 @@
 'use client'
 
 import { useCart } from '@/context/CartContext'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { collection, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+
 
 export default function CheckoutPage() {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -14,21 +15,12 @@ export default function CheckoutPage() {
     address: '',
     hall: '',
     notes: '',
-    paymentMethod: 'paystack',
+    paymentMethod: 'ercaspay',
     referralCode: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [PaystackButton, setPaystackButton] = useState(null)
-  const [referralStatus, setReferralStatus] = useState(null)
-  const [referralData, setReferralData] = useState(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      import('react-paystack').then((module) => {
-        setPaystackButton(() => module.PaystackButton)
-      })
-    }
-  }, [])
+const [referralStatus, setReferralStatus] = useState(null)
+const [referralData, setReferralData] = useState(null)
 
   if (cart.length === 0) {
     return (
@@ -99,140 +91,49 @@ export default function CheckoutPage() {
     }
   }
 
-  // ===== CRITICAL FIX: PAYSTACK SUCCESS HANDLER =====
-  const onPaystackSuccess = async (reference) => {
-    console.log('🎉 PAYMENT SUCCESS:', reference.reference)
+// ===== ERCASPAY PAYMENT HANDLER =====
+const handleErcaspayPayment = async () => {
+  try {
     setIsSubmitting(true)
+
+    console.log('🚀 Starting Ercas payment...')
+
+    // Call our API route
+    const response = await fetch('/api/ercas/initiate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount: getCartTotal(),
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+      }),
+    })
     
-    try {
-      // Get referral data if code exists
-      let validatedReferralData = null
-      if (formData.referralCode && formData.referralCode.trim() !== '') {
-        const upperCode = formData.referralCode.toUpperCase().trim()
-        const referralRef = doc(db, 'referrals', upperCode)
-        const referralSnap = await getDoc(referralRef)
-        if (referralSnap.exists() && referralSnap.data().isActive) {
-          validatedReferralData = referralSnap.data()
-        }
-      }
+const data = await response.json()
+    console.log('📊 API Response:', data)
 
-      const orderTotal = getCartTotal()
-      const commission = validatedReferralData 
-        ? calculateCommission(orderTotal, validatedReferralData.commissionRate)
-        : 0
-
-      const orderId = reference.reference
-      const orderData = {
-        orderId: orderId,
-        customer: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          hall: formData.hall,
-          notes: formData.notes
-        },
-        items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        totalAmount: orderTotal,
-        paymentMethod: 'paystack',
-        paymentStatus: 'Paid',
-        paymentReference: reference.reference,
-        referralCode: validatedReferralData ? formData.referralCode.toUpperCase() : null,
-        referralDetails: validatedReferralData ? {
-          referrerName: validatedReferralData.referrerName,
-          commissionRate: validatedReferralData.commissionRate,
-          commissionAmount: commission
-        } : null,
-        orderStatus: 'Pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-
-      console.log('💾 Saving order to Firebase...')
-      
-      // CRITICAL: Save order DIRECTLY with payment reference as document ID
-      const orderRef = doc(db, 'orders', orderId)
-      await setDoc(orderRef, orderData)
-      
-      console.log('✅ ORDER SAVED SUCCESSFULLY!')
-
-      // Update stock (non-blocking)
-      try {
-        for (const item of cart) {
-          const productRef = doc(db, 'products', item.id)
-          const productSnap = await getDoc(productRef)
-          
-          if (productSnap.exists()) {
-            const currentStock = productSnap.data().stock || 0
-            const newStock = Math.max(0, currentStock - item.quantity)
-            
-            await setDoc(productRef, {
-              stock: newStock,
-              inStock: newStock > 0,
-              updatedAt: new Date()
-            }, { merge: true })
-          }
-        }
-        console.log('✅ Stock updated')
-      } catch (stockError) {
-        console.error('⚠️ Stock update failed (non-critical):', stockError)
-      }
-
-      // Update referral stats (non-blocking)
-      if (validatedReferralData) {
-        try {
-          const referralRef = doc(db, 'referrals', formData.referralCode.toUpperCase())
-          const refSnap = await getDoc(referralRef)
-          if (refSnap.exists()) {
-            const refData = refSnap.data()
-            await setDoc(referralRef, {
-              totalReferrals: (refData.totalReferrals || 0) + 1,
-              totalEarnings: (refData.totalEarnings || 0) + commission,
-              lastReferralAt: new Date()
-            }, { merge: true })
-          }
-          console.log('✅ Referral updated')
-        } catch (refError) {
-          console.error('⚠️ Referral update failed (non-critical):', refError)
-        }
-      }
-
-      // Clear cart and redirect
-      clearCart()
-      console.log('✅ Redirecting to success page...')
-      window.location.href = `/order-success?orderId=${orderId}`
-      
-    } catch (error) {
-      console.error('🚨 CRITICAL ERROR after payment:', error)
-      
-      // Emergency backup - save to localStorage
-      const backup = {
-        reference: reference.reference,
-        customer: formData,
-        cart: cart,
-        totalAmount: getCartTotal(),
-        timestamp: new Date().toISOString(),
-        error: error.message
-      }
-      localStorage.setItem(`failed_order_${reference.reference}`, JSON.stringify(backup))
-      
-      alert(`⚠️ Payment received! There was a technical error saving your order.\n\nYour payment reference: ${reference.reference}\n\nPlease screenshot this and contact us immediately on WhatsApp.`)
-      
-      // Still try to redirect
-      window.location.href = `/order-success?orderId=${reference.reference}`
+    if (!data.success) {
+      console.error('❌ Payment failed:', data.message)
+      alert(data.message || 'Payment initialization failed')
+      setIsSubmitting(false)
+      return
     }
-  }
 
-  const onPaystackClose = () => {
-    console.log('❌ Payment window closed')
+    console.log('✅ Got checkout URL:', data.checkoutUrl)
+    console.log('🔄 Redirecting to Ercas...')
+
+    // Redirect to Ercas payment page
+    window.location.href = data.checkoutUrl
+
+  } catch (error) {
+    console.error('🚨 Error:', error)
+    alert('Network error. Please try again.')
     setIsSubmitting(false)
   }
+}
 
 // Pay on delivery handler
 const handlePayOnDelivery = async () => {
@@ -380,51 +281,26 @@ const handlePayOnDelivery = async () => {
     setIsSubmitting(false)
   }
 }
+const handleSubmit = async (e) => {
+  e.preventDefault()
+  
+  if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
+    alert('Please fill in all required fields')
+    return
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.phone || !formData.address || !formData.hall) {
-      alert('Please fill in all required fields')
+  if (formData.paymentMethod === 'ercaspay') {
+    if (!formData.email) {
+      alert('Email is required for card payment')
       return
     }
-
-    if (formData.paymentMethod === 'paystack') {
-      if (!formData.email) {
-        alert('Email is required for card payment')
-        return
-      }
-      // Paystack button will handle payment
-      return
-    }
-
+    await handleErcaspayPayment()
+  } else {
     // Pay on delivery
     await handlePayOnDelivery()
   }
+}
 
-  const paystackConfig = {
-    reference: `JIX-${Date.now()}`,
-    email: formData.email || 'customer@jix.com',
-    amount: getCartTotal() * 100,
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
-    metadata: {
-      custom_fields: [
-        {
-          display_name: "Customer Name",
-          variable_name: "customer_name",
-          value: formData.name
-        },
-        {
-          display_name: "Phone Number",
-          variable_name: "phone_number",
-          value: formData.phone
-        }
-      ]
-    },
-    text: 'Continue to Payment',
-    onSuccess: onPaystackSuccess,
-    onClose: onPaystackClose
-  }
 
   const estimatedCommission = referralData 
     ? calculateCommission(getCartTotal(), referralData.commissionRate)
@@ -483,20 +359,19 @@ const handlePayOnDelivery = async () => {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Email {formData.paymentMethod === 'paystack' && <span className="text-red-500">*</span>}
-                </label>
+Email {formData.paymentMethod === 'ercaspay' && <span className="text-red-500">*</span>}                </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="johnodey@example.com"
-                  required={formData.paymentMethod === 'paystack'}
+                  required={formData.paymentMethod === 'ercaspay'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                {formData.paymentMethod === 'paystack' && (
-                  <p className="text-xs text-gray-500 mt-1">Email required for card payment receipt</p>
-                )}
+               {formData.paymentMethod === 'ercaspay' && (
+  <p className="text-xs text-gray-500 mt-1">Email required for card payment receipt</p>
+)}
               </div>
 
               <div>
@@ -604,25 +479,22 @@ const handlePayOnDelivery = async () => {
             
             <div className="space-y-3">
               
-              <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="paystack"
-                  checked={formData.paymentMethod === 'paystack'}
-                  onChange={handleChange}
-                  className="mt-0.5 mr-3"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">Pay with Transfer/Card</span>
-                    <svg className="w-16 h-6" viewBox="0 0 120 30" fill="none">
-                      <text x="0" y="20" fontSize="18" fontWeight="bold" fill="#00C3F7">Paystack</text>
-                    </svg>
-                  </div>
-                  <p className="text-xs text-gray-600">Secure payment via Paystack - Transfer, Visa, Mastercard, Verve</p>
-                </div>
-              </label>
+           <label className="flex items-start p-3 border-2 border-blue-500 rounded-lg cursor-pointer bg-blue-50">
+  <input
+    type="radio"
+    name="paymentMethod"
+    value="ercaspay"
+    checked={formData.paymentMethod === 'ercaspay'}
+    onChange={handleChange}
+    className="mt-0.5 mr-3"
+  />
+  <div className="flex-1">
+    <div className="flex items-center justify-between mb-1">
+      <span className="text-sm font-medium text-gray-900">💳 Pay with Transfer/Card</span>
+    </div>
+    <p className="text-xs text-gray-600">Secure payment via Ercaspay - Transfer, Visa, Mastercard, Verve</p>
+  </div>
+</label>
 
               <label className="flex items-start p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition">
                 <input
@@ -674,40 +546,22 @@ const handlePayOnDelivery = async () => {
             </div>
           </div>
 
-          <div className="px-4 mt-4 mb-24">
-            {formData.paymentMethod === 'paystack' && PaystackButton ? (
-              <div>
-                {!formData.name || !formData.phone || !formData.address || !formData.hall || !formData.email ? (
-                  <button
-                    type="button"
-                    className="w-full py-3 rounded-lg font-medium transition bg-gray-400 cursor-not-allowed text-white"
-                    disabled
-                  >
-                    Please fill all fields
-                  </button>
-                ) : (
-                  <PaystackButton 
-                    {...paystackConfig} 
-                    className="w-full py-3 rounded-lg font-medium transition bg-blue-600 hover:bg-blue-700 text-white border-none cursor-pointer"
-                    disabled={isSubmitting}
-                  />
-                )}
-              </div>
-            ) : formData.paymentMethod === 'paystack' ? (
-              <div className="text-center py-3 text-sm text-gray-500">Loading payment...</div>
-            ) : (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full py-3 rounded-lg font-medium transition ${
-                  isSubmitting 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } text-white`}
-              >
-                {isSubmitting ? 'Processing...' : 'Place Order'}
-              </button>
-            )}
+         <div className="px-4 mt-4 mb-24">
+  <button
+    type="submit"
+    disabled={isSubmitting}
+    className={`w-full py-3 rounded-lg font-medium transition ${
+      isSubmitting 
+        ? 'bg-gray-400 cursor-not-allowed' 
+        : 'bg-blue-600 hover:bg-blue-700'
+    } text-white`}
+  >
+    {isSubmitting 
+      ? 'Processing...' 
+      : formData.paymentMethod === 'ercaspay' 
+        ? `Pay ₦${getCartTotal().toLocaleString()}` 
+        : 'Place Order'}
+  </button>
             <p className="text-xs text-gray-500 text-center mt-3">
               🔒 Secure checkout - Your payment information is encrypted
             </p>
@@ -719,4 +573,3 @@ const handlePayOnDelivery = async () => {
     </div>
   )
 }
-``
