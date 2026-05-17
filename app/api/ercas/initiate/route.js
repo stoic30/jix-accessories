@@ -2,9 +2,17 @@ export async function POST(req) {
   try {
     const body = await req.json()
 
+    if (!body.amount || !body.email || !body.name) {
+      return Response.json({
+        success: false,
+        message: 'Missing required fields',
+      })
+    }
+
+    const orderId = body.orderId || `JIX-${Date.now()}`
+
     console.log('🔵 Initiating Ercas payment...')
-    console.log('💰 Amount:', body.amount)
-    console.log('👤 Customer:', body.name, body.email)
+    console.log('Order ID:', orderId)
 
     const response = await fetch(
       'https://api.ercaspay.com/api/v1/payment/initiate',
@@ -15,28 +23,16 @@ export async function POST(req) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.ERCAS_SECRET_KEY}`,
         },
-
-        body: JSON.stringify({
-  amount: getCartTotal(),
-  name: formData.name,
-  email: formData.email,
-  phone: formData.phone,
-  orderId: orderId, // ✅ ADD THIS
-}),
         body: JSON.stringify({
           amount: body.amount,
-          paymentReference: body.orderId,
-          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/order-success?orderId=${body.orderId}`,
+          paymentReference: orderId,
           paymentMethods: 'card,bank-transfer,ussd',
           customerName: body.name,
           customerEmail: body.email,
           customerPhoneNumber: body.phone,
           currency: 'NGN',
-          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/order-success`,
+          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/order-success?orderId=${orderId}`,
           description: 'JIX Accessories Payment',
-          metadata: {
-            customerName: body.name,
-          },
         }),
       }
     )
@@ -46,26 +42,20 @@ export async function POST(req) {
     console.log('📊 Ercas Response:', data)
 
     if (!data.requestSuccessful) {
-      console.error('❌ Ercas Error:', data)
       return Response.json({
         success: false,
-        message: 
-        data.errorMessage || 
-        data.responseMessage || 
-        'Payment initialization failed',
+        message: data.responseMessage || 'Payment failed',
       })
     }
-
-    console.log('✅ Payment initialized successfully')
-    console.log('🔗 Checkout URL:', data.responseBody.checkoutUrl)
 
     return Response.json({
       success: true,
       checkoutUrl: data.responseBody.checkoutUrl,
-      transactionReference: data.responseBody.transactionReference,
     })
+
   } catch (error) {
     console.error('🚨 Server Error:', error)
+
     return Response.json({
       success: false,
       message: 'Server error. Please try again.',
