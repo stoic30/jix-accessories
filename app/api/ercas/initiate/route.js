@@ -1,65 +1,46 @@
-export async function POST(req) {
-  try {
-    const body = await req.json()
+'use client'
 
-    console.log('🔵 Initiating Ercas payment...')
-    console.log('💰 Amount:', body.amount)
-    console.log('👤 Customer:', body.name, body.email)
+export default function OrderSuccessPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-lg p-8 text-center">
+        
+        {/* Success Icon */}
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
 
-    const response = await fetch(
-      'https://api.ercaspay.com/api/v1/payment/initiate',
-      {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.ERCAS_SECRET_KEY}`,
-        },
-        body: JSON.stringify({
-          amount: body.amount,
-          paymentReference: `JIX-${Date.now()}`,
-          paymentMethods: 'card,bank-transfer,ussd',
-          customerName: body.name,
-          customerEmail: body.email,
-          customerPhoneNumber: body.phone,
-          currency: 'NGN',
-          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/order-success`,
-          description: 'JIX Accessories Payment',
-          metadata: {
-            customerName: body.name,
-          },
-        }),
-      }
-    )
+        {/* Title */}
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          Payment Successful! 🎉
+        </h1>
+        
+        <p className="text-gray-600 mb-6">
+          Thank you for your payment. We will contact you shortly.
+        </p>
 
-    const data = await response.json()
+        {/* Buttons */}
+        <div className="space-y-3">
+          <a 
+            href="https://wa.me/2348105021029" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600 transition"
+          >
+            Contact us on WhatsApp
+          </a>
 
-    console.log('📊 Ercas Response:', data)
+          <a 
+            href="/"
+            className="block w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+          >
+            Go to Homepage
+          </a>
+        </div>
 
-    if (!data.requestSuccessful) {
-      console.error('❌ Ercas Error:', data)
-      return Response.json({
-        success: false,
-        message: 
-        data.errorMessage || 
-        data.responseMessage || 
-        'Payment initialization failed',
-      })
-    }
-
-    console.log('✅ Payment initialized successfully')
-    console.log('🔗 Checkout URL:', data.responseBody.checkoutUrl)
-
-    return Response.json({
-      success: true,
-      checkoutUrl: data.responseBody.checkoutUrl,
-      transactionReference: data.responseBody.transactionReference,
-    })
-  } catch (error) {
-    console.error('🚨 Server Error:', error)
-    return Response.json({
-      success: false,
-      message: 'Server error. Please try again.',
-    })
-  }
+      </div>
+    </div>
+  )
 }
