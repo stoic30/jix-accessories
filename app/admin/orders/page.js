@@ -361,14 +361,14 @@ export default function AdminOrdersPage() {
                 {/* Total */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                   <span className="text-sm text-gray-600">Total Amount</span>
-                  <span className="text-lg font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</span>
+                  <span className="text-lg font-bold text-gray-900">₦{order.totalAmount ? order.totalAmount.toLocaleString() : '0'}</span>
                 </div>
 
                 {/* Actions */}
                 <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
                   {/* WhatsApp Button */}
                   <a 
-                    href={`https://wa.me/${formatWhatsAppNumber(order.customer.phone)}?text=Hi ${order.customer.name}, your order ${order.orderId} has been ${order.orderStatus === 'Delivered' ? 'delivered' : 'confirmed and will be delivered soon'}!`}
+                    href={`https://wa.me/${formatWhatsAppNumber(order.customer.phone)}?text=Hi ${order.customer?.name || 'No name'}, your order ${order.orderId} has been ${order.orderStatus === 'Delivered' ? 'delivered' : 'confirmed and will be delivered soon'}!`}
                     target="_blank"
                     className="w-full bg-green-50 text-green-700 text-sm font-medium py-2 rounded-lg flex items-center justify-center hover:bg-green-100"
                   >

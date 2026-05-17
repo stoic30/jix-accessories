@@ -99,6 +99,8 @@ const handleErcaspayPayment = async () => {
     console.log('🚀 Starting Ercas payment...')
     const orderId = `JIX-${Date.now()}`
 
+    
+
     // Call our API route
     const response = await fetch('/api/ercas/initiate', {
       method: 'POST',

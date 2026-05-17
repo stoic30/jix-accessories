@@ -23,20 +23,17 @@ function OrderSuccessContent() {
 
       const orderRef = doc(collection(db, 'orders'))
 
-   await setDoc(orderRef, {
+await setDoc(orderRef, {
   orderId: orderId,
   customer: {
-    name: 'Unknown', // or pass via metadata later
-    email: '',
-    phone: '',
+    name: 'Temp Name', // you should pass this properly later
+    email: 'Temp Email',
   },
+  totalAmount: 0, // you should pass real value
   items: [],
-  totalAmount: 0,
   paymentMethod: 'ercaspay',
   paymentStatus: 'Paid',
-  referralCode: null,
-  referralDetails: null,
-  orderStatus: 'Processing',
+  orderStatus: 'Pending',
   createdAt: new Date(),
 })
 
