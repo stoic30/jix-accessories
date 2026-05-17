@@ -5,6 +5,7 @@ import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/fi
 import { db } from '@/lib/firebase'
 
 const formatWhatsAppNumber = (phone) => {
+  if (!phone) return ''
   const cleaned = phone.replace(/[\s\-\(\)]/g, '')
   
   if (cleaned.startsWith('0')) {
@@ -73,9 +74,9 @@ export default function AdminOrdersPage() {
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase().trim()
       filtered = filtered.filter(order => 
-        order.orderId.toLowerCase().includes(term) ||
-        order.customer.phone.includes(term) ||
-        order.customer.name.toLowerCase().includes(term)
+        (order.orderId || '').toLowerCase().includes(term) ||
+        (order.customer?.phone || '').toLowerCase().includes(term) ||
+        (order.customer?.name || '').toLowerCase().includes(term)
       )
     }
 
@@ -312,7 +313,7 @@ export default function AdminOrdersPage() {
                 {/* Order Header */}
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="font-bold text-gray-900 text-sm">{order.orderId}</p>
+                    <p className="font-bold text-gray-900 text-sm">{order.orderId || order.id || 'Unknown Order'}</p>
                     <p className="text-xs text-gray-500">
                       {order.createdAt?.toDate?.()?.toLocaleDateString('en-NG', {
                         day: 'numeric',
@@ -329,7 +330,7 @@ export default function AdminOrdersPage() {
                       order.orderStatus === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
                       'bg-green-100 text-green-800'
                     }`}>
-                      {order.orderStatus}
+                      {order.orderStatus || 'Unknown'}
                     </span>
                   
                   </div>
@@ -337,24 +338,24 @@ export default function AdminOrdersPage() {
                 
                 {/* Customer Info */}
                 <div className="bg-gray-50 rounded-lg p-3 mb-3 text-xs">
-                  <p className="text-gray-600"><strong>Name:</strong> {order.customer.name}</p>
-                  <p className="text-gray-600"><strong>Phone:</strong> {order.customer.phone}</p>
-                  <p className="text-gray-600"><strong>Hall:</strong> {order.customer.hall}</p>
-                  <p className="text-gray-600"><strong>Address:</strong> {order.customer.address}</p>
-                  <p className="text-gray-600"><strong>Payment:</strong> {order.paymentMethod}</p>
+                  <p className="text-gray-600"><strong>Name:</strong> {order.customer?.name || 'N/A'}</p>
+                  <p className="text-gray-600"><strong>Phone:</strong> {order.customer?.phone || 'N/A'}</p>
+                  <p className="text-gray-600"><strong>Hall:</strong> {order.customer?.hall || 'N/A'}</p>
+                  <p className="text-gray-600"><strong>Address:</strong> {order.customer?.address || 'N/A'}</p>
+                  <p className="text-gray-600"><strong>Payment:</strong> {order.paymentMethod || 'N/A'}</p>
                 </div>
                 
                 {/* Items */}
                 <div className="space-y-2 mb-3">
-                  {order.items.slice(0, 2).map((item, i) => (
+                  {(order.items || []).slice(0, 2).map((item, i) => (
                     <div key={i} className="flex items-center text-sm">
                       <img src={item.image} alt={item.name} className="w-10 h-10 object-contain mr-2 bg-gray-50 rounded" />
                       <span className="text-gray-700 flex-1 line-clamp-1">{item.name}</span>
                       <span className="text-gray-500">×{item.quantity}</span>
                     </div>
                   ))}
-                  {order.items.length > 2 && (
-                    <p className="text-xs text-gray-500">+{order.items.length - 2} more items</p>
+                  {(order.items || []).length > 2 && (
+                    <p className="text-xs text-gray-500">+{(order.items || []).length - 2} more items</p>
                   )}
                 </div>
                 
@@ -368,7 +369,7 @@ export default function AdminOrdersPage() {
                 <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
                   {/* WhatsApp Button */}
                   <a 
-                    href={`https://wa.me/${formatWhatsAppNumber(order.customer.phone)}?text=Hi ${order.customer?.name || 'No name'}, your order ${order.orderId} has been ${order.orderStatus === 'Delivered' ? 'delivered' : 'confirmed and will be delivered soon'}!`}
+                    href={`https://wa.me/${formatWhatsAppNumber(order.customer?.phone || '')}?text=Hi ${order.customer?.name || 'No name'}, your order ${order.orderId} has been ${order.orderStatus === 'Delivered' ? 'delivered' : 'confirmed and will be delivered soon'}!`}
                     target="_blank"
                     className="w-full bg-green-50 text-green-700 text-sm font-medium py-2 rounded-lg flex items-center justify-center hover:bg-green-100"
                   >

@@ -127,9 +127,46 @@ const data = await response.json()
     }
 
     console.log('✅ Got checkout URL:', data.checkoutUrl)
-    console.log('🔄 Redirecting to Ercas...')
 
-    // Redirect to Ercas payment page
+    // Save the Ercas order before redirecting so we keep customer and amount data
+    const orderData = {
+      orderId: orderId,
+      customer: {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        hall: formData.hall,
+        notes: formData.notes,
+      },
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image,
+      })),
+      totalAmount: getCartTotal(),
+      paymentMethod: 'ercaspay',
+      paymentStatus: 'Pending',
+      paymentReference: orderId,
+      orderStatus: 'Pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    try {
+      const orderRef = doc(collection(db, 'orders'))
+      await setDoc(orderRef, orderData)
+      console.log('✅ Ercas order saved successfully')
+    } catch (saveError) {
+      console.error('❌ Failed to save Ercas order:', saveError)
+      alert('Unable to save your order record. Please try again.')
+      setIsSubmitting(false)
+      return
+    }
+
+    console.log('🔄 Redirecting to Ercas...')
     window.location.href = data.checkoutUrl
 
   } catch (error) {

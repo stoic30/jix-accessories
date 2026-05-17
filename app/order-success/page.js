@@ -2,49 +2,14 @@
 
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { useEffect } from 'react'
-import { collection, doc, setDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
-
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId') || 'N/A'
 
-  const whatsappNumber = '2348105021029' // 
+  const whatsappNumber = '2348105021029'
   const whatsappMessage = `Hi, I just placed order ${orderId}`
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`
-  useEffect(() => {
-  const saveOrder = async () => {
-    if (!orderId || orderId === 'N/A') return
-
-    try {
-      console.log('💾 Saving Ercas order...')
-
-      const orderRef = doc(collection(db, 'orders'))
-
-await setDoc(orderRef, {
-  orderId: orderId,
-  customer: {
-    name: 'Temp Name', // you should pass this properly later
-    email: 'Temp Email',
-  },
-  totalAmount: 0, // you should pass real value
-  items: [],
-  paymentMethod: 'ercaspay',
-  paymentStatus: 'Paid',
-  orderStatus: 'Pending',
-  createdAt: new Date(),
-})
-
-      console.log('✅ Order saved successfully')
-    } catch (err) {
-      console.error('❌ Error saving order:', err)
-    }
-  }
-
-  saveOrder()
-}, [orderId])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
