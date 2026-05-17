@@ -23,7 +23,7 @@ export async function POST(req) {
           customerEmail: body.email,
           customerPhoneNumber: body.phone,
           currency: 'NGN',
-          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success`,
+          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/order-success`,
           description: 'JIX Accessories Payment',
           metadata: {
             customerName: body.name,
