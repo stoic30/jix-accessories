@@ -23,12 +23,22 @@ function OrderSuccessContent() {
 
       const orderRef = doc(collection(db, 'orders'))
 
-      await setDoc(orderRef, {
-        orderId: orderId,
-        paymentMethod: 'ercaspay',
-        paymentStatus: 'Paid',
-        createdAt: new Date(),
-      })
+   await setDoc(orderRef, {
+  orderId: orderId,
+  customer: {
+    name: 'Unknown', // or pass via metadata later
+    email: '',
+    phone: '',
+  },
+  items: [],
+  totalAmount: 0,
+  paymentMethod: 'ercaspay',
+  paymentStatus: 'Paid',
+  referralCode: null,
+  referralDetails: null,
+  orderStatus: 'Processing',
+  createdAt: new Date(),
+})
 
       console.log('✅ Order saved successfully')
     } catch (err) {

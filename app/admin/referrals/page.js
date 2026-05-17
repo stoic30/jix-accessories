@@ -139,10 +139,10 @@ export default function ReferralsPage() {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <p className="font-bold text-sm text-gray-900">{order.orderId}</p>
-                    <p className="text-xs text-gray-500">{order.customer.name}</p>
+                    <p className="text-xs text-gray-500">{order.customer?.name || 'No Name'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">₦{order.totalAmount.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-gray-900">₦{order.totalAmount?.toLocaleString?.() || '0'}</p>
                     <p className="text-xs text-green-600">
                       +₦{order.referralDetails?.commissionAmount?.toLocaleString() || 0} 
                       {order.referralDetails?.commissionRate && ` (${order.referralDetails.commissionRate}%)`}
