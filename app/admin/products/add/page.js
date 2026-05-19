@@ -2,8 +2,51 @@
 
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc } from 'firebase/firestore'
+import { collection, addDoc, getDocs, query, where } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
+
+const DEFAULT_SUBCATEGORIES = {
+  phones: [
+    { value: 'samsung', label: 'Samsung' },
+    { value: 'iphone', label: 'iPhone' },
+    { value: 'tablets', label: 'Tablets' }
+  ],
+  laptops: [
+    { value: 'hp', label: 'HP' },
+    { value: 'dell', label: 'Dell' },
+    { value: 'macbook', label: 'MacBook' }
+  ],
+  accessories: [
+    { value: 'powerbank', label: 'Powerbank' },
+    { value: 'headset', label: 'Headsets' },
+    { value: 'earpods', label: 'EarPods' },
+    { value: 'chargers', label: 'Chargers' },
+    { value: 'speakers', label: 'Speakers' },
+    { value: 'smartwatch', label: 'Smart Watch' },
+    { value: 'storage', label: 'Storage' },
+    { value: 'earphone', label: 'Earphone' },
+    { value: 'fan', label: 'Fan' },
+    { value: 'lighting', label: 'Lighting' },
+    { value: 'socket', label: 'Socket' }
+  ],
+  ukused: [
+    { value: 'uk-iphone', label: '🇬🇧 UK iPhones' },
+    { value: 'uk-samsung', label: '🇬🇧 UK Samsung' },
+    { value: 'uk-laptop', label: '🇬🇧 UK Laptops' }
+  ]
+}
+
+const getCanonicalSubcategories = (category) => DEFAULT_SUBCATEGORIES[category] || []
+
+const normalizeSubcategories = (category, docs) => {
+  const allowedSlugs = new Set(getCanonicalSubcategories(category).map(sub => sub.value))
+  return docs
+    .map(doc => ({
+      value: doc.slug,
+      label: getCanonicalSubcategories(category).find(sub => sub.value === doc.slug)?.label || doc.name
+    }))
+    .filter(sub => allowedSlugs.has(sub.value))
+}
 
 export default function AddProduct() {
   const [user, setUser] = useState(null)
@@ -24,6 +67,43 @@ export default function AddProduct() {
     featured: false,
     sale: false
   })
+  const [availableSubcategories, setAvailableSubcategories] = useState([])
+
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      try {
+        const q = query(collection(db, 'subcategories'), where('category', '==', formData.category))
+        const snapshot = await getDocs(q)
+        if (!snapshot.empty) {
+          const docs = snapshot.docs.map(doc => doc.data())
+          const validSubcategories = normalizeSubcategories(formData.category, docs)
+          if (validSubcategories.length) {
+            setAvailableSubcategories(validSubcategories)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error loading subcategories:', error)
+      }
+
+      setAvailableSubcategories(getCanonicalSubcategories(formData.category))
+    }
+
+    loadSubcategories()
+  }, [formData.category])
+
+  useEffect(() => {
+    const options = availableSubcategories.length
+      ? availableSubcategories
+      : (DEFAULT_SUBCATEGORIES[formData.category] || [])
+
+    if (options.length && !options.some(opt => opt.value === formData.subcategory)) {
+      setFormData(prev => ({
+        ...prev,
+        subcategory: options[0].value
+      }))
+    }
+  }, [formData.category, availableSubcategories])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -189,51 +269,22 @@ export default function AddProduct() {
                   Subcategory <span className="text-red-500">*</span>
                 </label>
                 <select
-  name="subcategory"
-  value={formData.subcategory}
-  onChange={handleChange}
-  required
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
->
-  {formData.category === 'phones' && (
-    <>
-      <option value="samsung">Samsung</option>
-      <option value="iphone">iPhone</option>
-      <option value="tablets">Tablets</option>
-    </>
-  )}
-  {formData.category === 'laptops' && (
-    <>
-      <option value="hp">HP</option>
-      <option value="dell">Dell</option>
-      <option value="macbook">MacBook</option>
-    </>
-  )}
-  {formData.category === 'accessories' && (
-    <>
-      <option value="powerbank">Power Bank</option>
-      <option value="headset">Headset</option>
-      <option value="earpods">EarPods</option>
-      <option value="chargers">Chargers</option>
-      <option value="speakers">Speakers</option>
-      <option value="smartwatch">Smart Watch</option>
-    </>
-  )}
-  {formData.category === 'ukused' && (
-  <>
-    {/* UK Phones */}
-    <option value="uk-iphone">🇬🇧 UK iPhone</option>
-    <option value="uk-samsung">🇬🇧 UK Samsung</option>    
-    {/* UK Laptops */}
-    <option value="uk-laptop">🇬🇧 UK LAPTOP</option>
-    
-  </>
-  )}
-</select>
+                  name="subcategory"
+                  value={formData.subcategory}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {(availableSubcategories.length
+                    ? availableSubcategories
+                    : getCanonicalSubcategories(formData.category)
+                  ).map((sub) => (
+                    <option key={sub.value} value={sub.value}>{sub.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Brand */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Brand <span className="text-red-500">*</span>
